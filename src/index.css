@@ -1,0 +1,306 @@
+/* @tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 220 20% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 10%;
+
+    --primary: 215 70% 40%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 20% 93%;
+    --secondary-foreground: 220 20% 10%;
+
+    --muted: 210 15% 95%;
+    --muted-foreground: 215 10% 45%;
+
+    --accent: 42 90% 55%;
+    --accent-foreground: 220 20% 10%;
+
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 20% 88%;
+    --input: 214 20% 88%;
+    --ring: 215 70% 40%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 215 30% 18%;
+    --sidebar-foreground: 210 20% 95%;
+    --sidebar-primary: 42 90% 55%;
+    --sidebar-primary-foreground: 220 20% 10%;
+    --sidebar-accent: 215 25% 25%;
+    --sidebar-accent-foreground: 210 20% 95%;
+    --sidebar-border: 215 20% 28%;
+    --sidebar-ring: 42 90% 55%;
+
+    --success: 145 60% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 90% 50%;
+    --warning-foreground: 220 20% 10%;
+  }
+
+  .dark {
+    --background: 220 20% 8%;
+    --foreground: 210 20% 95%;
+
+    --card: 220 18% 12%;
+    --card-foreground: 210 20% 95%;
+
+    --popover: 220 18% 12%;
+    --popover-foreground: 210 20% 95%;
+
+    --primary: 215 70% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 215 15% 20%;
+    --secondary-foreground: 210 20% 95%;
+
+    --muted: 215 15% 18%;
+    --muted-foreground: 215 10% 55%;
+
+    --accent: 42 90% 55%;
+    --accent-foreground: 220 20% 10%;
+
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 215 15% 22%;
+    --input: 215 15% 22%;
+    --ring: 215 70% 55%;
+
+    --sidebar-background: 220 20% 6%;
+    --sidebar-foreground: 210 20% 95%;
+    --sidebar-primary: 42 90% 55%;
+    --sidebar-primary-foreground: 220 20% 10%;
+    --sidebar-accent: 215 15% 14%;
+    --sidebar-accent-foreground: 210 20% 95%;
+    --sidebar-border: 215 15% 14%;
+    --sidebar-ring: 42 90% 55%;
+
+    --success: 145 50% 35%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 80% 45%;
+    --warning-foreground: 220 20% 10%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+@layer utilities {
+  .table-grid {
+    @apply border border-border;
+  }
+  .table-grid th,
+  .table-grid td {
+    @apply border border-border px-3 py-2 text-sm;
+  }
+  .table-grid th {
+    @apply bg-primary text-primary-foreground font-semibold text-xs uppercase tracking-wider;
+  }
+  .table-grid tr:hover td {
+    @apply bg-muted/60;
+  }
+  .category-row td {
+    @apply bg-secondary font-bold;
+  }
+} */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Base Neutral Hues (Clean white/gray with a tiny warm tint) */
+    --background: 0 0% 99%;
+    --foreground: 357 40% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 357 40% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 357 40% 10%;
+
+    /* TSU Official Maroon (DEFAULT) */
+    --primary: 357 75% 26%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Soft Warm Tint for secondary elements (Tables, secondary buttons) */
+    --secondary: 42 35% 94%;
+    --secondary-foreground: 357 60% 15%;
+
+    --muted: 357 10% 95%;
+    --muted-foreground: 357 15% 45%;
+
+    /* TSU Official Gold */
+    --accent: 42 95% 52%;
+    --accent-foreground: 357 60% 12%;
+
+    --destructive: 0 75% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 357 15% 89%;
+    --input: 357 15% 89%;
+    --ring: 357 75% 26%;
+
+    --radius: 0.5rem;
+
+    /* Left Sidebar: Sophisticated deep Maroon layout */
+    --sidebar-background: 357 80% 12%;
+    --sidebar-foreground: 42 30% 95%;
+    --sidebar-primary: 42 95% 52%;
+    --sidebar-primary-foreground: 357 60% 12%;
+    --sidebar-accent: 357 60% 18%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 357 50% 18%;
+    --sidebar-ring: 42 95% 52%;
+
+    --success: 145 60% 38%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 95% 48%;
+    --warning-foreground: 357 40% 10%;
+  }
+
+  .dark {
+    /* Premium Dark Mode with deep maroon-tinted charcoals */
+    --background: 357 25% 7%;
+    --foreground: 42 20% 94%;
+
+    --card: 357 18% 11%;
+    --card-foreground: 42 20% 94%;
+
+    --popover: 357 18% 11%;
+    --popover-foreground: 42 20% 94%;
+
+    /* Slightly brighter maroon for optimal dark mode accessibility */
+    --primary: 357 70% 42%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 357 15% 16%;
+    --secondary-foreground: 42 20% 94%;
+
+    --muted: 357 15% 15%;
+    --muted-foreground: 357 10% 60%;
+
+    /* TSU Gold remains sharp */
+    --accent: 42 95% 52%;
+    --accent-foreground: 357 60% 12%;
+
+    --destructive: 0 65% 35%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 357 15% 18%;
+    --input: 357 15% 18%;
+    --ring: 357 70% 42%;
+
+    --sidebar-background: 357 30% 6%;
+    --sidebar-foreground: 42 15% 90%;
+    --sidebar-primary: 42 95% 52%;
+    --sidebar-primary-foreground: 357 60% 12%;
+    --sidebar-accent: 357 15% 14%;
+    --sidebar-accent-foreground: 42 15% 90%;
+    --sidebar-border: 357 15% 14%;
+    --sidebar-ring: 42 95% 52%;
+
+    --success: 145 50% 32%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 85% 42%;
+    --warning-foreground: 357 60% 12%;
+  }
+
+  /* =========================================
+     DYNAMIC THEME OVERRIDES (From Customizer) 
+     ========================================= */
+
+  .theme-maroon {
+    --primary: 357 75% 26%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 357 75% 26%;
+  }
+
+  .theme-blue {
+    --primary: 221.2 83.2% 53.3%; 
+    --primary-foreground: 0 0% 100%;
+    --ring: 221.2 83.2% 53.3%;
+  }
+
+  .theme-green {
+    --primary: 142.1 76.2% 36.3%;
+    --primary-foreground: 355.7 100% 97.3%;
+    --ring: 142.1 76.2% 36.3%;
+  }
+
+  .theme-violet {
+    --primary: 262.1 83.3% 57.8%;
+    --primary-foreground: 210 20% 98%;
+    --ring: 262.1 83.3% 57.8%;
+  }
+
+  .theme-amber {
+    --primary: 24.6 95% 53.1%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 24.6 95% 53.1%;
+  }
+
+  .theme-zinc {
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+    --ring: 240 5.9% 10%;
+  }
+
+  /* Make sure dark mode adjusts if a theme is active */
+  .dark.theme-zinc { --primary: 0 0% 98%; --primary-foreground: 240 5.9% 10%; --ring: 0 0% 98%; }
+  .dark.theme-blue { --primary: 217.2 91.2% 59.8%; --ring: 217.2 91.2% 59.8%; }
+  .dark.theme-green { --primary: 142.1 70.6% 45.3%; --ring: 142.1 70.6% 45.3%; }
+  .dark.theme-violet { --primary: 263.4 70% 50.4%; --ring: 263.4 70% 50.4%; }
+  .dark.theme-amber { --primary: 47.9 95.8% 53.1%; --ring: 47.9 95.8% 53.1%; }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground transition-colors duration-300;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+@layer utilities {
+  .table-grid {
+    @apply border border-border;
+  }
+  .table-grid th,
+  .table-grid td {
+    @apply border border-border px-3 py-2 text-sm;
+  }
+  .table-grid th {
+    @apply bg-primary text-primary-foreground font-semibold text-xs uppercase tracking-wider transition-colors duration-300;
+  }
+  .table-grid tr:hover td {
+    @apply bg-muted/60;
+  }
+  .category-row td {
+    @apply bg-secondary font-bold;
+  }
+}
