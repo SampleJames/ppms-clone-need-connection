@@ -85,18 +85,30 @@ export default function CollabPage() {
                   </div>
                   <div className="flex gap-1 ml-4 shrink-0" onClick={(e) => e.stopPropagation()}>
                     {isOwner && (
-                      <Button
-                        variant="ghost" size="icon"
-                        onClick={() => {
-                          if (confirm(`Delete "${p.name}"? This cannot be undone.`)) {
-                            deleteCollabProject(p.id).catch((e) =>
-                              toast({ title: "Delete failed", description: (e as Error).message, variant: "destructive" })
-                            );
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <>
+                        <Button
+                          variant="ghost" size="icon"
+                          onClick={() => {
+                            setEditProject(p);
+                            setEditName(p.name);
+                            setEditDesc(p.description || "");
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost" size="icon"
+                          onClick={() => {
+                            if (confirm(`Delete "${p.name}"? This cannot be undone.`)) {
+                              deleteCollabProject(p.id).catch((e) =>
+                                toast({ title: "Delete failed", description: (e as Error).message, variant: "destructive" })
+                              );
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </>
                     )}
                   </div>
                 </CardContent>
