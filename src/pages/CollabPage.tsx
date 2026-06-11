@@ -134,6 +134,38 @@ export default function CollabPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!editProject} onOpenChange={(o) => !o && setEditProject(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Project</DialogTitle>
+            <DialogDescription>Update the project name and description.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="Project Name" value={editName} onChange={(e) => setEditName(e.target.value)} />
+            <Input placeholder="Description (optional)" value={editDesc} onChange={(e) => setEditDesc(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditProject(null)}>Cancel</Button>
+            <Button
+              disabled={!editName.trim()}
+              onClick={async () => {
+                if (!editProject) return;
+                try {
+                  await updateDoc(doc(db, "collabProjects", editProject.id), {
+                    name: editName.trim(),
+                    description: editDesc.trim(),
+                    updatedAt: serverTimestamp(),
+                  });
+                  setEditProject(null);
+                } catch (e) {
+                  toast({ title: "Update failed", description: (e as Error).message, variant: "destructive" });
+                }
+              }}
+            >Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
