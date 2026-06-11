@@ -5,13 +5,15 @@ import SignInScreen from "@/components/auth/SignInScreen";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Users, FolderOpen, Trash2, Crown } from "lucide-react";
+import { Plus, Users, FolderOpen, Trash2, Crown, Pencil } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import {
   CollabProjectDoc, createCollabProject, deleteCollabProject, subscribeMyProjects,
 } from "@/lib/collabStorage";
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { toast } from "@/hooks/use-toast";
 
 export default function CollabPage() {
@@ -21,6 +23,9 @@ export default function CollabPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
+  const [editProject, setEditProject] = useState<CollabProjectDoc | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDesc, setEditDesc] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -80,18 +85,30 @@ export default function CollabPage() {
                   </div>
                   <div className="flex gap-1 ml-4 shrink-0" onClick={(e) => e.stopPropagation()}>
                     {isOwner && (
-                      <Button
-                        variant="ghost" size="icon"
-                        onClick={() => {
-                          if (confirm(`Delete "${p.name}"? This cannot be undone.`)) {
-                            deleteCollabProject(p.id).catch((e) =>
-                              toast({ title: "Delete failed", description: (e as Error).message, variant: "destructive" })
-                            );
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <>
+                        <Button
+                          variant="ghost" size="icon"
+                          onClick={() => {
+                            setEditProject(p);
+                            setEditName(p.name);
+                            setEditDesc(p.description || "");
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost" size="icon"
+                          onClick={() => {
+                            if (confirm(`Delete "${p.name}"? This cannot be undone.`)) {
+                              deleteCollabProject(p.id).catch((e) =>
+                                toast({ title: "Delete failed", description: (e as Error).message, variant: "destructive" })
+                              );
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </>
                     )}
                   </div>
                 </CardContent>
@@ -114,6 +131,38 @@ export default function CollabPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
             <Button onClick={handleCreate} disabled={!name.trim()}>Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editProject} onOpenChange={(o) => !o && setEditProject(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Project</DialogTitle>
+            <DialogDescription>Update the project name and description.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="Project Name" value={editName} onChange={(e) => setEditName(e.target.value)} />
+            <Input placeholder="Description (optional)" value={editDesc} onChange={(e) => setEditDesc(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditProject(null)}>Cancel</Button>
+            <Button
+              disabled={!editName.trim()}
+              onClick={async () => {
+                if (!editProject) return;
+                try {
+                  await updateDoc(doc(db, "collabProjects", editProject.id), {
+                    name: editName.trim(),
+                    description: editDesc.trim(),
+                    updatedAt: serverTimestamp(),
+                  });
+                  setEditProject(null);
+                } catch (e) {
+                  toast({ title: "Update failed", description: (e as Error).message, variant: "destructive" });
+                }
+              }}
+            >Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
