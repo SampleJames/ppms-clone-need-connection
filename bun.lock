@@ -5,6 +5,8 @@
     "": {
       "name": "tanstack_start_ts",
       "dependencies": {
+        "@azure/msal-browser": "^5.11.0",
+        "@azure/msal-react": "^5.4.2",
         "@hookform/resolvers": "^3.10.0",
         "@radix-ui/react-accordion": "^1.2.11",
         "@radix-ui/react-alert-dialog": "^1.1.14",
@@ -92,6 +94,12 @@
     "@adobe/css-tools": ["@adobe/css-tools@4.4.4", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@adobe/css-tools/-/css-tools-4.4.4.tgz", {}, "sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg=="],
 
     "@alloc/quick-lru": ["@alloc/quick-lru@5.2.0", "", {}, "sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw=="],
+
+    "@azure/msal-browser": ["@azure/msal-browser@5.13.0", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@azure/msal-browser/-/msal-browser-5.13.0.tgz", { "dependencies": { "@azure/msal-common": "16.8.0" } }, "sha512-Ea23x0U8XNFY+qJ9T44zO2BbY+AHdb+WdjmYnx36OhJ/KO+PGU5pmsNHf1DCElYX+6wyVRJz1HFeCPC/cHbRug=="],
+
+    "@azure/msal-common": ["@azure/msal-common@16.8.0", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@azure/msal-common/-/msal-common-16.8.0.tgz", {}, "sha512-5S4RHOcInL2Nu2U217tDZbWGI6StMfcWCrA7TWvWdJmXQ+cYrrIqr84AsN62fGh2MDBysiBJPt6CfWceJfloEA=="],
+
+    "@azure/msal-react": ["@azure/msal-react@5.4.4", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@azure/msal-react/-/msal-react-5.4.4.tgz", { "peerDependencies": { "@azure/msal-browser": "^5.13.0", "react": "^16.8.0 || ^17 || ^18 || ^19.2.1" } }, "sha512-FQptUhRkh32klnsu9P2aJZ5RZZIkJhwm9exIJBBx/HAm44hjW8YcYj88YmTjwRis6Z9h2qyie7RhCxMX3QXG9g=="],
 
     "@babel/code-frame": ["@babel/code-frame@7.29.0", "", { "dependencies": { "@babel/helper-validator-identifier": "^7.28.5", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw=="],
 
