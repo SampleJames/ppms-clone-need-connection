@@ -5,13 +5,15 @@ import SignInScreen from "@/components/auth/SignInScreen";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Users, FolderOpen, Trash2, Crown } from "lucide-react";
+import { Plus, Users, FolderOpen, Trash2, Crown, Pencil } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import {
   CollabProjectDoc, createCollabProject, deleteCollabProject, subscribeMyProjects,
 } from "@/lib/collabStorage";
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { toast } from "@/hooks/use-toast";
 
 export default function CollabPage() {
