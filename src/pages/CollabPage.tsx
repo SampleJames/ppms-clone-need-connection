@@ -23,6 +23,9 @@ export default function CollabPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
+  const [editProject, setEditProject] = useState<CollabProjectDoc | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDesc, setEditDesc] = useState("");
 
   useEffect(() => {
     if (!user) return;
