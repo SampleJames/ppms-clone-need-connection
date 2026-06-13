@@ -575,6 +575,8 @@ export default function CollabProjectView() {
       abcItems: JSON.parse(JSON.stringify(project.abcItems)),
       dupaItems: JSON.parse(JSON.stringify(project.dupaItems)),
       settings: { ...project.settings },
+      savedByEmail: user?.email || "",
+      savedByName: user?.displayName || user?.email || "Someone",
     };
     save({ ...project, versions: [...project.versions, version] });
     logActivity(id, "saved version", versionName.trim());
