@@ -369,3 +369,61 @@ export async function clearPresence(pid: string) {
   if (!u) return;
   await deleteDoc(presenceRef(pid, u.uid)).catch(() => {});
 }
+
+// ===================== Price List Category Versions =====================
+import type { PriceListCategory, PriceListItem } from "@/types";
+
+export interface PriceListVersionDoc {
+  yearId: string;
+  yearName: string;
+  note: string;
+  savedByUid: string;
+  savedByEmail: string;
+  savedByName: string;
+  savedAt: Timestamp | null;
+  categories: PriceListCategory[];
+  items: PriceListItem[];
+}
+
+export const priceListVersionsCol = (pid: string) =>
+  collection(db, "collabProjects", pid, "priceListVersions");
+export const priceListVersionRef = (pid: string, vid: string) =>
+  doc(db, "collabProjects", pid, "priceListVersions", vid);
+
+export async function savePriceListVersion(
+  pid: string,
+  payload: { yearId: string; yearName: string; note: string; categories: PriceListCategory[]; items: PriceListItem[] }
+) {
+  const u = auth.currentUser;
+  if (!u) throw new Error("Not signed in");
+  const data: Omit<PriceListVersionDoc, never> = {
+    yearId: payload.yearId,
+    yearName: payload.yearName,
+    note: payload.note || "",
+    savedByUid: u.uid,
+    savedByEmail: u.email || "",
+    savedByName: u.displayName || u.email || "Someone",
+    savedAt: serverTimestamp() as never,
+    categories: payload.categories,
+    items: payload.items,
+  };
+  const ref = await addDoc(priceListVersionsCol(pid), data);
+  await logActivity(pid, `saved a Price List category version for ${payload.yearName}`);
+  return ref.id;
+}
+
+export function subscribePriceListVersions(
+  pid: string,
+  cb: (list: (PriceListVersionDoc & { id: string })[]) => void
+) {
+  return onSnapshot(priceListVersionsCol(pid), (snap) => {
+    const out: (PriceListVersionDoc & { id: string })[] = [];
+    snap.forEach((d) => out.push({ id: d.id, ...(d.data() as PriceListVersionDoc) }));
+    out.sort((a, b) => (b.savedAt?.toMillis?.() ?? 0) - (a.savedAt?.toMillis?.() ?? 0));
+    cb(out);
+  });
+}
+
+export async function deletePriceListVersion(pid: string, vid: string) {
+  await deleteDoc(priceListVersionRef(pid, vid));
+}
