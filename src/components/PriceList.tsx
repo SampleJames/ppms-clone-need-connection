@@ -90,6 +90,79 @@ export default function PriceList({ project, compact, onSave, pid, canEdit = tru
   const [addItemMarketPrice, setAddItemMarketPrice] = useState("");
   const [addItemMarkupPrice, setAddItemMarkupPrice] = useState("");
 
+  // Cloud category versions (shared project only)
+  const [catVersions, setCatVersions] = useState<(PriceListVersionDoc & { id: string })[]>([]);
+  const [saveVersionOpen, setSaveVersionOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [versionNote, setVersionNote] = useState("");
+  const [restoreTarget, setRestoreTarget] = useState<(PriceListVersionDoc & { id: string }) | null>(null);
+
+  useEffect(() => {
+    if (!pid) return;
+    const unsub = subscribePriceListVersions(pid, setCatVersions);
+    return () => unsub();
+  }, [pid]);
+
+  const handleSaveCategoryVersion = async () => {
+    if (!pid || !activeYear) return;
+    try {
+      await savePriceListVersion(pid, {
+        yearId: activeYear.id,
+        yearName: activeYear.year,
+        note: versionNote.trim(),
+        categories: activeYear.categories,
+        items: activeYear.items,
+      });
+      toast({ title: "Version saved to cloud", description: "All members can now see and restore this version." });
+      setVersionNote("");
+      setSaveVersionOpen(false);
+    } catch (e: unknown) {
+      toast({ title: "Save failed", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" });
+    }
+  };
+
+  const handleRestoreCategoryVersion = (v: PriceListVersionDoc & { id: string }) => {
+    // Find or create matching year, then replace its categories+items with the snapshot
+    setYears((prev) => {
+      const existingIdx = prev.findIndex((y) => y.id === v.yearId);
+      if (existingIdx >= 0) {
+        const updated = [...prev];
+        updated[existingIdx] = {
+          ...updated[existingIdx],
+          year: v.yearName || updated[existingIdx].year,
+          categories: JSON.parse(JSON.stringify(v.categories)),
+          items: JSON.parse(JSON.stringify(v.items)),
+        };
+        return updated;
+      }
+      // year not on this device — recreate it
+      return [
+        ...prev,
+        {
+          id: v.yearId,
+          year: v.yearName || "Restored",
+          categories: JSON.parse(JSON.stringify(v.categories)),
+          items: JSON.parse(JSON.stringify(v.items)),
+        },
+      ];
+    });
+    setActiveYearId(v.yearId);
+    toast({ title: "Restored", description: `Restored categories saved by ${v.savedByEmail || v.savedByName}.` });
+    setRestoreTarget(null);
+    setHistoryOpen(false);
+  };
+
+  const handleDeleteCategoryVersion = async (vid: string) => {
+    if (!pid) return;
+    try {
+      await deletePriceListVersion(pid, vid);
+      toast({ title: "Version deleted" });
+    } catch (e: unknown) {
+      toast({ title: "Delete failed", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" });
+    }
+  };
+
+
   // Compare dialog search/filter
   const [compareSearch, setCompareSearch] = useState("");
   const [compareFilterCat, setCompareFilterCat] = useState<string>("all");
