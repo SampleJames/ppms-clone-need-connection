@@ -1104,7 +1104,7 @@ export default function PriceList({ project, compact, onSave, pid, canEdit = tru
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </Dialog>
+      </AlertDialog>
     </div>
   );
 }
