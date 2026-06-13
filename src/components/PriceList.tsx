@@ -19,11 +19,20 @@ import {
 import { Project, PriceListYear, PriceListCategory, PriceListItem } from "@/types";
 import { formatCurrency } from "@/lib/calculations";
 import { UnitCombobox } from "@/components/ui/unit-combobox";
+import { History, Save } from "lucide-react";
+import {
+  savePriceListVersion,
+  subscribePriceListVersions,
+  deletePriceListVersion,
+  type PriceListVersionDoc,
+} from "@/lib/collabStorage";
 
 interface PriceListProps {
   project: Project;
   compact?: boolean;
   onSave?: (p: Project) => void;
+  pid?: string;
+  canEdit?: boolean;
 }
 
 const STORAGE_KEY = "costmgr_pricelist";
@@ -52,7 +61,7 @@ function savePriceList(years: PriceListYear[]) {
   import("@/lib/specBackfill").then((m) => m.invalidateSpecLookup()).catch(() => {});
 }
 
-export default function PriceList({ project, compact, onSave }: PriceListProps) {
+export default function PriceList({ project, compact, onSave, pid, canEdit = true }: PriceListProps) {
   const [years, setYears] = useState<PriceListYear[]>(() => loadPriceList());
   const [activeYearId, setActiveYearId] = useState<string>("");
   const [newYearName, setNewYearName] = useState("");
@@ -80,6 +89,79 @@ export default function PriceList({ project, compact, onSave }: PriceListProps) 
   const [addItemUnit, setAddItemUnit] = useState("");
   const [addItemMarketPrice, setAddItemMarketPrice] = useState("");
   const [addItemMarkupPrice, setAddItemMarkupPrice] = useState("");
+
+  // Cloud category versions (shared project only)
+  const [catVersions, setCatVersions] = useState<(PriceListVersionDoc & { id: string })[]>([]);
+  const [saveVersionOpen, setSaveVersionOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [versionNote, setVersionNote] = useState("");
+  const [restoreTarget, setRestoreTarget] = useState<(PriceListVersionDoc & { id: string }) | null>(null);
+
+  useEffect(() => {
+    if (!pid) return;
+    const unsub = subscribePriceListVersions(pid, setCatVersions);
+    return () => unsub();
+  }, [pid]);
+
+  const handleSaveCategoryVersion = async () => {
+    if (!pid || !activeYear) return;
+    try {
+      await savePriceListVersion(pid, {
+        yearId: activeYear.id,
+        yearName: activeYear.year,
+        note: versionNote.trim(),
+        categories: activeYear.categories,
+        items: activeYear.items,
+      });
+      toast({ title: "Version saved to cloud", description: "All members can now see and restore this version." });
+      setVersionNote("");
+      setSaveVersionOpen(false);
+    } catch (e: unknown) {
+      toast({ title: "Save failed", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" });
+    }
+  };
+
+  const handleRestoreCategoryVersion = (v: PriceListVersionDoc & { id: string }) => {
+    // Find or create matching year, then replace its categories+items with the snapshot
+    setYears((prev) => {
+      const existingIdx = prev.findIndex((y) => y.id === v.yearId);
+      if (existingIdx >= 0) {
+        const updated = [...prev];
+        updated[existingIdx] = {
+          ...updated[existingIdx],
+          year: v.yearName || updated[existingIdx].year,
+          categories: JSON.parse(JSON.stringify(v.categories)),
+          items: JSON.parse(JSON.stringify(v.items)),
+        };
+        return updated;
+      }
+      // year not on this device — recreate it
+      return [
+        ...prev,
+        {
+          id: v.yearId,
+          year: v.yearName || "Restored",
+          categories: JSON.parse(JSON.stringify(v.categories)),
+          items: JSON.parse(JSON.stringify(v.items)),
+        },
+      ];
+    });
+    setActiveYearId(v.yearId);
+    toast({ title: "Restored", description: `Restored categories saved by ${v.savedByEmail || v.savedByName}.` });
+    setRestoreTarget(null);
+    setHistoryOpen(false);
+  };
+
+  const handleDeleteCategoryVersion = async (vid: string) => {
+    if (!pid) return;
+    try {
+      await deletePriceListVersion(pid, vid);
+      toast({ title: "Version deleted" });
+    } catch (e: unknown) {
+      toast({ title: "Delete failed", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" });
+    }
+  };
+
 
   // Compare dialog search/filter
   const [compareSearch, setCompareSearch] = useState("");
@@ -611,6 +693,16 @@ export default function PriceList({ project, compact, onSave }: PriceListProps) 
                       }}>
                         <Plus className="h-4 w-4 mr-1" /> Add Item
                       </Button>
+                      {pid && (
+                        <>
+                          <Button size="sm" variant="outline" disabled={!canEdit} onClick={() => setSaveVersionOpen(true)}>
+                            <Save className="h-4 w-4 mr-1" /> Save Categories Version
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setHistoryOpen(true)}>
+                            <History className="h-4 w-4 mr-1" /> History ({catVersions.length})
+                          </Button>
+                        </>
+                      )}
                     </div>
 
                     {getFilteredCategories(year).length === 0 ? (
@@ -926,6 +1018,94 @@ export default function PriceList({ project, compact, onSave }: PriceListProps) 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Save Categories Version dialog */}
+      <Dialog open={saveVersionOpen} onOpenChange={setSaveVersionOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save Categories Version</DialogTitle>
+            <DialogDescription>
+              Save a cloud snapshot of <b>{activeYear?.year}</b>'s categories and items. All members can view and restore this version.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Note (optional)</Label>
+            <Input
+              placeholder="e.g., Updated electrical prices"
+              value={versionNote}
+              onChange={(e) => setVersionNote(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSaveCategoryVersion()}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveVersionOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveCategoryVersion} disabled={!canEdit || !activeYear}>
+              <Save className="h-4 w-4 mr-1" /> Save Version
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* History dialog */}
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Categories Version History</DialogTitle>
+            <DialogDescription>
+              All saved category versions for this shared project. Restore to replace the current year's categories and items.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto space-y-2">
+            {catVersions.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">No saved versions yet.</div>
+            ) : (
+              catVersions.map((v) => (
+                <div key={v.id} className="border rounded-lg p-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-sm">
+                      {v.yearName} · {v.categories.length} categories · {v.items.length} items
+                    </div>
+                    {v.note && <div className="text-sm text-muted-foreground mt-0.5">"{v.note}"</div>}
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Saved by <b>{v.savedByEmail || v.savedByName}</b>
+                      {v.savedAt?.toDate ? ` · ${v.savedAt.toDate().toLocaleString()}` : ""}
+                    </div>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <Button size="sm" variant="outline" disabled={!canEdit} onClick={() => setRestoreTarget(v)}>
+                      Restore
+                    </Button>
+                    <Button size="sm" variant="ghost" className="text-destructive" disabled={!canEdit} onClick={() => handleDeleteCategoryVersion(v.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHistoryOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!restoreTarget} onOpenChange={(o) => !o && setRestoreTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore this version?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will replace the categories and items in <b>{restoreTarget?.yearName}</b> with the snapshot saved by{" "}
+              <b>{restoreTarget?.savedByEmail || restoreTarget?.savedByName}</b>. This affects only your local Price List view; other members can restore the same version on their end.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => restoreTarget && handleRestoreCategoryVersion(restoreTarget)}>
+              Restore
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
