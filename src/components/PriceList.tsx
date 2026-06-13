@@ -54,7 +54,7 @@ function savePriceList(years: PriceListYear[]) {
   import("@/lib/specBackfill").then((m) => m.invalidateSpecLookup()).catch(() => {});
 }
 
-export default function PriceList({ project, compact, onSave }: PriceListProps) {
+export default function PriceList({ project, compact, onSave, pid, canEdit = true }: PriceListProps) {
   const [years, setYears] = useState<PriceListYear[]>(() => loadPriceList());
   const [activeYearId, setActiveYearId] = useState<string>("");
   const [newYearName, setNewYearName] = useState("");
