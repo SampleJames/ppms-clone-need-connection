@@ -24,6 +24,8 @@ interface PriceListProps {
   project: Project;
   compact?: boolean;
   onSave?: (p: Project) => void;
+  pid?: string;
+  canEdit?: boolean;
 }
 
 const STORAGE_KEY = "costmgr_pricelist";
