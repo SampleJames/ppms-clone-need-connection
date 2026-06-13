@@ -782,11 +782,16 @@ export default function CollabProjectView() {
             <DialogDescription>Restore a previous version.</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 max-h-64 overflow-auto">
-            {project.versions.map((v) => (
+            {[...project.versions]
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+              .map((v) => (
               <div key={v.id} className="flex items-center justify-between p-3 rounded-md border">
-                <div>
-                  <p className="font-medium text-sm">{v.name}</p>
+                <div className="min-w-0">
+                  <p className="font-medium text-sm truncate">{v.name}</p>
                   <p className="text-xs text-muted-foreground">{new Date(v.createdAt).toLocaleString()}</p>
+                  {v.savedByEmail && (
+                    <p className="text-xs text-muted-foreground truncate">Saved by {v.savedByEmail}</p>
+                  )}
                 </div>
                 <Button size="sm" variant="outline" disabled={!canEdit} onClick={() => handleRestoreVersion(v)}>Restore</Button>
               </div>
