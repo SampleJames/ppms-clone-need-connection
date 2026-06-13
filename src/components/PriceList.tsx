@@ -693,6 +693,16 @@ export default function PriceList({ project, compact, onSave, pid, canEdit = tru
                       }}>
                         <Plus className="h-4 w-4 mr-1" /> Add Item
                       </Button>
+                      {pid && (
+                        <>
+                          <Button size="sm" variant="outline" disabled={!canEdit} onClick={() => setSaveVersionOpen(true)}>
+                            <Save className="h-4 w-4 mr-1" /> Save Categories Version
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setHistoryOpen(true)}>
+                            <History className="h-4 w-4 mr-1" /> History ({catVersions.length})
+                          </Button>
+                        </>
+                      )}
                     </div>
 
                     {getFilteredCategories(year).length === 0 ? (
