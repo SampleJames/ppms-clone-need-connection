@@ -1018,6 +1018,94 @@ export default function PriceList({ project, compact, onSave, pid, canEdit = tru
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Save Categories Version dialog */}
+      <Dialog open={saveVersionOpen} onOpenChange={setSaveVersionOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save Categories Version</DialogTitle>
+            <DialogDescription>
+              Save a cloud snapshot of <b>{activeYear?.year}</b>'s categories and items. All members can view and restore this version.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Note (optional)</Label>
+            <Input
+              placeholder="e.g., Updated electrical prices"
+              value={versionNote}
+              onChange={(e) => setVersionNote(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSaveCategoryVersion()}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveVersionOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveCategoryVersion} disabled={!canEdit || !activeYear}>
+              <Save className="h-4 w-4 mr-1" /> Save Version
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* History dialog */}
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Categories Version History</DialogTitle>
+            <DialogDescription>
+              All saved category versions for this shared project. Restore to replace the current year's categories and items.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto space-y-2">
+            {catVersions.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">No saved versions yet.</div>
+            ) : (
+              catVersions.map((v) => (
+                <div key={v.id} className="border rounded-lg p-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-sm">
+                      {v.yearName} · {v.categories.length} categories · {v.items.length} items
+                    </div>
+                    {v.note && <div className="text-sm text-muted-foreground mt-0.5">"{v.note}"</div>}
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Saved by <b>{v.savedByEmail || v.savedByName}</b>
+                      {v.savedAt?.toDate ? ` · ${v.savedAt.toDate().toLocaleString()}` : ""}
+                    </div>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <Button size="sm" variant="outline" disabled={!canEdit} onClick={() => setRestoreTarget(v)}>
+                      Restore
+                    </Button>
+                    <Button size="sm" variant="ghost" className="text-destructive" disabled={!canEdit} onClick={() => handleDeleteCategoryVersion(v.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHistoryOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!restoreTarget} onOpenChange={(o) => !o && setRestoreTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore this version?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will replace the categories and items in <b>{restoreTarget?.yearName}</b> with the snapshot saved by{" "}
+              <b>{restoreTarget?.savedByEmail || restoreTarget?.savedByName}</b>. This affects only your local Price List view; other members can restore the same version on their end.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => restoreTarget && handleRestoreCategoryVersion(restoreTarget)}>
+              Restore
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </Dialog>
     </div>
   );
 }
+
