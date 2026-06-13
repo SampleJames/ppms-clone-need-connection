@@ -747,7 +747,7 @@ export default function CollabProjectView() {
           </div>
         </TabsContent>
         <TabsContent value="pricelist">
-          <PriceList project={project} compact={compactView} onSave={save} />
+          <PriceList project={project} compact={compactView} onSave={save} pid={id} canEdit={canEdit} />
         </TabsContent>
         <TabsContent value="playground">
           <Playground compact={compactView} />
