@@ -159,6 +159,8 @@ export interface ProjectVersion {
   abcItems: ABCItem[];
   dupaItems: DUPAItem[];
   settings: ProjectSettings;
+  savedByEmail?: string;
+  savedByName?: string;
 }
 
 export interface SignatoryPerson {
