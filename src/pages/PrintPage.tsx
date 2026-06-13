@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Printer, FileDown, Eye, EyeOff, ToggleLeft, ToggleRight, Palette, Grid3X3, RotateCcw } from "lucide-react";
+import { ArrowLeft, Printer, FileDown, Eye, Palette, RotateCcw, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,20 +13,17 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectLabel, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Project, ABCItem, DUPAItem } from "@/types";
-import { getProjects, getProject } from "@/lib/storage";
+import { Project, ABCItem } from "@/types";
+import { getProjects, getProject, saveProject } from "@/lib/storage";
 import { formatCurrency } from "@/lib/calculations";
 import { sortByItemNo } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -41,14 +38,17 @@ import {
   ensureRoomForSignatories,
   getSignatoriesReserveMm,
 } from "@/lib/printSettings";
-import { sanitizeAutoTableCell, sanitizePdfText } from "@/lib/pdfText";
+import { sanitizeAutoTableCell } from "@/lib/pdfText";
 import { renderSCurvePdf } from "@/lib/scurvePdf";
 import PrintSettingsEditor from "@/components/PrintSettingsEditor";
-import PrintLayoutPreview from "@/components/PrintLayoutPreview";
 import SCurve, { getSnapshots, type SCurveSnapshot } from "@/components/SCurve";
-import html2canvas from "html2canvas";
-import { saveProject } from "@/lib/storage";
 import { PrintSettings, DEFAULT_PRINT_SETTINGS, PrintDocType, PrintProfiles } from "@/types";
+
+// Firebase & Collab Imports
+import { useAuth } from "@/contexts/AuthContext";
+import { subscribeMyProjects, subscribeProject, CollabProjectDoc, docToProject } from "@/lib/collabStorage";
+import { collection, doc, setDoc, deleteDoc, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 function hexToRgb(hex: string): [number, number, number] {
   const r = parseInt(hex.slice(1, 3), 16);
@@ -58,7 +58,6 @@ function hexToRgb(hex: string): [number, number, number] {
 }
 
 interface PdfColorSettings {
-  
   abcHeaderBg: string;
   abcHeaderText: string;
   abcCategoryBg: string;
@@ -67,7 +66,6 @@ interface PdfColorSettings {
   abcSubtotalText: string;
   abcGrandTotalBg: string;
   abcGrandTotalText: string;
-  
   dupaHeaderBg: string;
   dupaHeaderText: string;
   dupaSectionLabelColor: string;
@@ -139,6 +137,7 @@ const DEFAULT_ABC_FORMULAS: Record<string, string> = {
   totalCost: "(5+11) x (1)",
   unitCost: "(12) / (1)",
 };
+
 const ABC_FORMULA_LABELS: Record<string, string> = {
   estimatedDirectCost: "Est. Direct Cost",
   totalMarkupPercent: "Markup %",
@@ -168,11 +167,39 @@ export default function PrintPage() {
   const [searchParams] = useSearchParams();
   const preselectedProjectId = searchParams.get("project") || "";
 
-  const [projects] = useState<Project[]>(() => getProjects());
+  // 1. Setup Auth and Firebase/Local Projects States
+  const { user } = useAuth();
+  const [localProjects] = useState<Project[]>(() => getProjects());
+  const [collabDocs, setCollabDocs] = useState<CollabProjectDoc[]>([]);
+  const [activeCollabProject, setActiveCollabProject] = useState<Project | null>(null);
+  
   const [selectedProjectId, setSelectedProjectId] = useState(preselectedProjectId);
   const [activeTab, setActiveTab] = useState<"abc" | "dupa" | "boq" | "scurve" | "header">("abc");
 
-  
+  // Fetch Collab Project List
+  useEffect(() => {
+    if (!user) return;
+    return subscribeMyProjects(user.uid, setCollabDocs);
+  }, [user]);
+
+  // Determine if it's local or cloud, and fetch cloud if needed
+  const localProjectMatch = localProjects.find((p) => p.id === selectedProjectId);
+  const isCollab = selectedProjectId && !localProjectMatch;
+
+  useEffect(() => {
+    if (isCollab && selectedProjectId) {
+      return subscribeProject(selectedProjectId, (doc) => {
+        if (doc) setActiveCollabProject(docToProject(doc));
+        else setActiveCollabProject(null);
+      });
+    } else {
+      setActiveCollabProject(null);
+    }
+  }, [selectedProjectId, isCollab]);
+
+  // The definitive selected project for generating PDFs
+  const selectedProject = isCollab ? activeCollabProject : localProjectMatch;
+
   const [abcVisibleColumns, setAbcVisibleColumns] = useState<Set<string>>(
     () => new Set(ABC_COLUMNS.filter((c) => c.default).map((c) => c.key))
   );
@@ -181,14 +208,12 @@ export default function PrintPage() {
   const [abcSimpleVersion, setAbcSimpleVersion] = useState(false);
   const abcColumnsActive = abcSimpleVersion ? ABC_COLUMNS_SIMPLE : ABC_COLUMNS;
 
-  
   const showBorders = true;
   const [colors, setColors] = useState<PdfColorSettings>({ ...DEFAULT_COLORS });
   const updateColor = (key: keyof PdfColorSettings, value: string) => {
     setColors(prev => ({ ...prev, [key]: value }));
   };
 
-  
   const [dupaSelectedPages, setDupaSelectedPages] = useState<Set<string>>(new Set());
   const [dupaExcludedMaterials, setDupaExcludedMaterials] = useState<Record<string, Set<string>>>({});
   const [dupaExcludedLabor, setDupaExcludedLabor] = useState<Record<string, Set<string>>>({});
@@ -198,13 +223,10 @@ export default function PrintPage() {
   const [dupaHideEquipment, setDupaHideEquipment] = useState(false);
   const [dupaHideSummary, setDupaHideSummary] = useState(false);
 
-  
   const [scurveSnapshots, setScurveSnapshots] = useState<SCurveSnapshot[]>([]);
   const [scurveSelectedId, setScurveSelectedId] = useState<string>("");
   const scurvePreviewRef = useRef<HTMLDivElement>(null);
 
-  // Per-document-type print profiles. Each can be customised independently
-  // because ABC/BOQ/S-Curve are landscape-legal and DUPA is portrait-a4.
   const [printProfiles, setPrintProfiles] = useState<PrintProfiles>(() => ({
     abc: { ...DEFAULT_PRINT_SETTINGS },
     dupa: { ...DEFAULT_PRINT_SETTINGS },
@@ -214,13 +236,6 @@ export default function PrintPage() {
   const [printScope, setPrintScope] = useState<"global" | "project">("project");
   const [editingDoc, setEditingDoc] = useState<PrintDocType>("abc");
 
-  const selectedProject = useMemo(
-    () => (selectedProjectId ? getProject(selectedProjectId) : undefined),
-    [selectedProjectId]
-  );
-
-  
-  
   const reloadProfiles = (scope: "global" | "project") => {
     const proj = scope === "global" ? null : selectedProject;
     setPrintProfiles({
@@ -244,27 +259,23 @@ export default function PrintPage() {
       setScurveSelectedId(snaps[0]?.id ?? "__current__");
     }
     reloadProfiles(printScope);
-    
-  }, [selectedProjectId]);
+  }, [selectedProjectId, selectedProject?.id]);
 
   useEffect(() => {
     reloadProfiles(printScope);
-    
   }, [printScope]);
 
-  
   useEffect(() => {
     const hasDupaOverride = !!selectedProject?.printProfileOverrides?.dupa;
     if (!hasDupaOverride) {
       setDocSettings("dupa", simpleSettings);
       setAppliedTemplateId((prev) => ({ ...prev, dupa: "__builtin_simple" }));
     }
-    
   }, [selectedProjectId]);
 
   const setDocSettings = (doc: PrintDocType, ps: PrintSettings) => {
     setPrintProfiles((prev) => ({ ...prev, [doc]: ps }));
-    if (selectedProject) {
+    if (selectedProject && !isCollab) {
       const overrides = { ...(selectedProject.printProfileOverrides || {}), [doc]: ps };
       saveProject({ ...selectedProject, printProfileOverrides: overrides });
     } else {
@@ -272,7 +283,6 @@ export default function PrintPage() {
     }
   };
 
-  
   type PrintTemplate = { id: string; name: string; settings: PrintSettings };
   const TEMPLATES_KEY = "costmgr_print_templates_v1";
   type AllTemplates = Record<PrintDocType, PrintTemplate[]>;
@@ -293,6 +303,31 @@ export default function PrintPage() {
   };
 
   const [customTemplates, setCustomTemplates] = useState<AllTemplates>(() => loadAllTemplates());
+  
+  // Real-time Cloud Templates Sync via Firebase
+  const [cloudTemplates, setCloudTemplates] = useState<AllTemplates>({ abc: [], dupa: [], boq: [], scurve: [] });
+  const [saveTplLocation, setSaveTplLocation] = useState<"cloud" | "local">("cloud");
+
+  useEffect(() => {
+    if (!user) return;
+    const unsub = onSnapshot(collection(db, "printTemplates"), (snap) => {
+      const parsed: AllTemplates = { abc: [], dupa: [], boq: [], scurve: [] };
+      snap.forEach((docSnap) => {
+        const data = docSnap.data();
+        const tType = data.type as PrintDocType;
+        if (parsed[tType]) {
+          parsed[tType].push({
+            id: docSnap.id,
+            name: data.name,
+            settings: data.settings
+          });
+        }
+      });
+      setCloudTemplates(parsed);
+    });
+    return unsub;
+  }, [user]);
+
   const [appliedTemplateId, setAppliedTemplateId] = useState<Record<PrintDocType, string>>({
     abc: "", dupa: "__builtin_simple", boq: "", scurve: "",
   });
@@ -327,8 +362,12 @@ export default function PrintPage() {
   }, [simpleSettings]);
 
   const templatesForCurrentDoc = useMemo(
-    () => [...builtInTemplates, ...customTemplates[editingDoc]],
-    [builtInTemplates, customTemplates, editingDoc]
+    () => [
+      ...builtInTemplates, 
+      ...cloudTemplates[editingDoc], 
+      ...customTemplates[editingDoc]
+    ],
+    [builtInTemplates, cloudTemplates, customTemplates, editingDoc]
   );
 
   const applyPrintTemplate = (id: string) => {
@@ -341,43 +380,72 @@ export default function PrintPage() {
 
   const openSaveTemplateDialog = () => {
     setSaveTplName("");
+    setSaveTplLocation("cloud"); // Default to Cloud sharing!
     setSaveTplOpen(true);
   };
 
-  const confirmSaveTemplate = () => {
+  const confirmSaveTemplate = async () => {
     const name = saveTplName.trim();
     if (!name) return;
-    const tpl: PrintTemplate = {
-      id: `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      name,
-      settings: { ...printProfiles[editingDoc] },
-    };
-    const next: AllTemplates = {
-      ...customTemplates,
-      [editingDoc]: [...customTemplates[editingDoc], tpl],
-    };
-    persistTemplates(next);
-    setAppliedTemplateId((prev) => ({ ...prev, [editingDoc]: tpl.id }));
-    setSaveTplOpen(false);
-    toast({ title: `Template "${name}" saved for ${DOC_PAGE[editingDoc].label}` });
+    const tplId = `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    
+    try {
+      if (saveTplLocation === "cloud") {
+        await setDoc(doc(db, "printTemplates", tplId), {
+          name,
+          type: editingDoc,
+          settings: printProfiles[editingDoc],
+          createdBy: user?.uid || "unknown",
+          createdAt: new Date().toISOString()
+        });
+        setAppliedTemplateId((prev) => ({ ...prev, [editingDoc]: tplId }));
+        setSaveTplOpen(false);
+        toast({ title: `Shared template "${name}" saved to Cloud` });
+      } else {
+        const tpl: PrintTemplate = { id: tplId, name, settings: { ...printProfiles[editingDoc] } };
+        const next: AllTemplates = {
+          ...customTemplates,
+          [editingDoc]: [...customTemplates[editingDoc], tpl],
+        };
+        persistTemplates(next);
+        setAppliedTemplateId((prev) => ({ ...prev, [editingDoc]: tpl.id }));
+        setSaveTplOpen(false);
+        toast({ title: `Local template "${name}" saved` });
+      }
+    } catch (err) {
+      toast({ title: "Failed to save template", description: (err as Error).message, variant: "destructive" });
+    }
   };
 
-  const handleDeleteTemplate = (id: string) => {
+  const handleDeleteTemplate = async (id: string, isCloud: boolean) => {
     if (id.startsWith("__builtin_")) return;
-    const next: AllTemplates = {
-      ...customTemplates,
-      [editingDoc]: customTemplates[editingDoc].filter((t) => t.id !== id),
-    };
-    persistTemplates(next);
-    if (appliedTemplateId[editingDoc] === id) {
-      setAppliedTemplateId((prev) => ({ ...prev, [editingDoc]: "" }));
+    
+    try {
+      if (isCloud) {
+        await deleteDoc(doc(db, "printTemplates", id));
+        if (appliedTemplateId[editingDoc] === id) {
+          setAppliedTemplateId((prev) => ({ ...prev, [editingDoc]: "" }));
+        }
+        toast({ title: "Shared template deleted" });
+      } else {
+        const next: AllTemplates = {
+          ...customTemplates,
+          [editingDoc]: customTemplates[editingDoc].filter((t) => t.id !== id),
+        };
+        persistTemplates(next);
+        if (appliedTemplateId[editingDoc] === id) {
+          setAppliedTemplateId((prev) => ({ ...prev, [editingDoc]: "" }));
+        }
+        toast({ title: "Local template deleted" });
+      }
+    } catch (err) {
+      toast({ title: "Failed to delete template", description: (err as Error).message, variant: "destructive" });
     }
-    toast({ title: "Template deleted" });
   };
 
   const handleSavePrintSettings = () => {
     const ps = printProfiles[editingDoc];
-    if (printScope === "global") {
+    if (printScope === "global" || isCollab) {
       saveGlobalPrintProfile(editingDoc, ps);
       toast({ title: `Global ${DOC_PAGE[editingDoc].label} print settings saved` });
     } else if (selectedProject) {
@@ -389,7 +457,7 @@ export default function PrintPage() {
   };
 
   const handleClearProjectOverride = () => {
-    if (!selectedProject) return;
+    if (!selectedProject || isCollab) return;
     const overrides = { ...(selectedProject.printProfileOverrides || {}) };
     delete overrides[editingDoc];
     const updated: Project = { ...selectedProject, printProfileOverrides: overrides };
@@ -464,8 +532,6 @@ export default function PrintPage() {
     ? { lineColor: [0, 0, 0] as [number, number, number], lineWidth: 0.1 }
     : {};
 
-  
-  
   const openPreview = (doc: jsPDF, label: string) => {
     try {
       const url = doc.output("bloburl");
@@ -485,8 +551,6 @@ export default function PrintPage() {
     doc.setFontSize(14);
     const headerY = renderPdfHeader(doc, { title: "APPROVED BUDGET FOR THE CONTRACT", project: selectedProject, settings: printProfiles.abc });
 
-    
-    
     const NUMBER_MAP: Record<string, string> = {
       quantity: "1", unit: "2", materialsCost: "3", laborEquipmentCost: "4",
       estimatedDirectCost: "5", ocmPercent: "6", profitPercent: "7",
@@ -494,17 +558,13 @@ export default function PrintPage() {
       totalIndirectCost: "11", totalCost: "12", unitCost: "13",
     };
     const FORMULA_MAP: Record<string, string> = { ...DEFAULT_ABC_FORMULAS, ...abcFormulas };
-    const SUBLABEL: Record<string, string> = {
-      ocmPercent: "OCM", profitPercent: "PROFIT",
-      totalMarkupPercent: "%", markupValue: "Value",
-    };
 
     const row1: any[] = [];
     const row2: any[] = [];
     const fItalic = { fontStyle: "italic" as const, fontSize: 6 };
     const blankHeadCell = { content: "", styles: { fillColor: hexToRgb(colors.abcHeaderBg) } };
-    const row3: any[] = []; // numbers
-    const row4: any[] = []; // formulas
+    const row3: any[] = [];
+    const row4: any[] = [];
 
     let ci = 0;
     while (ci < cols.length) {
@@ -545,17 +605,6 @@ export default function PrintPage() {
           return "";
         });
         body.push(row);
-
-        // Add category subtotal row
-        const catTotal = getCategoryTotal(item.id, selectedProject.abcItems);
-        const subtotalRow = cols.map((c, idx) => {
-          if (idx === cols.length - 1 || c.key === "totalCost") return { content: `₱${formatCurrency(catTotal)}`, styles: { fontStyle: "bold", halign: "right" } };
-          if (c.key === "description") return { content: `Subtotal: ${item.description}`, styles: { fontStyle: "bold italic", textColor: [100, 100, 100] } };
-          return "";
-        });
-        // Find children and add them first, then the subtotal
-        const childRows = rows.filter(r => r.parentId === item.id && !r.isCategory);
-        // We'll add subtotal after all children of this category in a second pass
       } else {
         const row = cols.map((c) => {
           const val = (item as any)[c.key];
@@ -568,19 +617,17 @@ export default function PrintPage() {
       }
     }
 
-    
     const bodyWithSubtotals: any[][] = [];
     let i = 0;
     while (i < rows.length) {
       const item = rows[i];
       if (item.isCategory) {
-        
         bodyWithSubtotals.push(cols.map((c) => {
           if (c.key === "itemNo") return { content: item.itemNo, styles: { fontStyle: "bold", fillColor: hexToRgb(colors.abcCategoryBg), textColor: hexToRgb(colors.abcCategoryText) } };
           if (c.key === "description") return { content: item.description, styles: { fontStyle: "bold", fillColor: hexToRgb(colors.abcCategoryBg), textColor: hexToRgb(colors.abcCategoryText) } };
           return { content: "", styles: { fillColor: hexToRgb(colors.abcCategoryBg) } };
         }));
-        // Add all children
+
         let j = i + 1;
         while (j < rows.length && rows[j].parentId === item.id && !rows[j].isCategory) {
           const child = rows[j];
@@ -619,7 +666,6 @@ export default function PrintPage() {
       }
     }
 
-    
     const grandTotal = selectedProject.abcItems
       .filter((it) => it.isCategory && !it.parentId)
       .reduce((s, it) => s + getCategoryTotal(it.id, selectedProject.abcItems), 0) +
@@ -627,10 +673,8 @@ export default function PrintPage() {
         .filter((it) => !it.isCategory && !it.parentId)
         .reduce((s, it) => s + it.totalCost, 0);
 
-    
     const descIdx = cols.findIndex(c => c.key === "description");
     const gtTotalCostIdx = cols.findIndex(c => c.key === "totalCost");
-    const unitCostIdx = cols.findIndex(c => c.key === "unitCost");
     const firstSpan = descIdx >= 0 ? descIdx + 1 : 1;
     const middleSpan = Math.max(1, gtTotalCostIdx - firstSpan + 1);
     const grandTotalRow: any[] = [
@@ -703,7 +747,6 @@ export default function PrintPage() {
         body.push(boqCols.map((c) => {
           if (c.key === "itemNo") return item.itemNo;
           if (c.key === "description") return item.description;
-          
           return "";
         }));
       }
@@ -732,9 +775,6 @@ export default function PrintPage() {
     const settings = printProfiles.scurve;
     const title = "S-CURVE / PROJECT SCHEDULE";
 
-    
-    
-    
     const snap = scurveSnapshots.find((s) => s.id === scurveSelectedId);
     const renderOpts = snap
       ? {
@@ -763,11 +803,7 @@ export default function PrintPage() {
       return;
     }
 
-    
-    
-    
     const COL = { itemNo: 12, desc: 64, qty: 20, unit: 14, rate: 32, total: 40 };
-    const TABLE_W = COL.itemNo + COL.desc + COL.qty + COL.unit + COL.rate + COL.total;
     const MARGIN_L = 14;
     const MARGIN_R = 14;
     
@@ -810,7 +846,6 @@ export default function PrintPage() {
     selectedDupas.forEach((dupa, idx) => {
       if (idx > 0) doc.addPage();
 
-      
       const headerEnd = renderPdfHeader(doc, { title: "DETAILED UNIT PRICE ANALYSIS", project: selectedProject, settings: printProfiles.dupa });
 
       const abcItem = selectedProject.abcItems.find((i) => i.id === dupa.abcItemId);
@@ -818,7 +853,6 @@ export default function PrintPage() {
         ? selectedProject.abcItems.find((i) => i.id === abcItem.parentId && i.isCategory)
         : undefined;
 
-      
       const titleHead: any[][] = [
         [
           { content: "" },
@@ -970,7 +1004,6 @@ export default function PrintPage() {
       }
     });
     
-    
     const totalPages = doc.getNumberOfPages();
     for (let p = 1; p <= totalPages; p++) {
       doc.setPage(p);
@@ -997,7 +1030,6 @@ export default function PrintPage() {
 
   return (
     <div className="p-6 max-w-[1400px] mx-auto">
-      {}
       <div className="flex items-center gap-3 mb-6">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-4 w-4" />
@@ -1008,24 +1040,41 @@ export default function PrintPage() {
         </div>
       </div>
 
-      {}
       <Card className="mb-6">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Select Project</CardTitle>
         </CardHeader>
         <CardContent>
-          <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-            <SelectTrigger className="max-w-md">
-              <SelectValue placeholder="Choose a project..." />
-            </SelectTrigger>
-            <SelectContent>
-              {projects.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+            <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+              <SelectTrigger className="max-w-md flex-1">
+                <SelectValue placeholder="Choose a project..." />
+              </SelectTrigger>
+              <SelectContent>
+                {localProjects.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel className="text-muted-foreground">Local Projects</SelectLabel>
+                    {localProjects.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )}
+                
+                {collabDocs.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel className="text-muted-foreground mt-2">Cloud / Shared Projects</SelectLabel>
+                    {collabDocs.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        ☁️ {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
         </CardContent>
       </Card>
 
@@ -1048,7 +1097,6 @@ export default function PrintPage() {
             )}
           </div>
 
-          {}
           <TabsContent value="abc">
             <div className="mb-2 text-xs text-muted-foreground">
               Edit the ABC header, footer & signatory layout in the{" "}
@@ -1062,7 +1110,6 @@ export default function PrintPage() {
               tab — it has its own preview tuned for landscape legal paper.
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4">
-              {}
               <div className="space-y-4">
                 <Card>
                   <CardHeader className="pb-2">
@@ -1181,7 +1228,6 @@ export default function PrintPage() {
                 )}
               </div>
 
-              {}
               <div className="space-y-4">
               <Card>
                 <CardHeader className="pb-2">
@@ -1322,10 +1368,8 @@ export default function PrintPage() {
             </div>
           </TabsContent>
 
-          {}
           <TabsContent value="dupa">
             <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4">
-              {}
               <div className="space-y-4">
                 <Card>
                   <CardHeader className="pb-2">
@@ -1408,7 +1452,6 @@ export default function PrintPage() {
                 </Card>
               </div>
 
-              {}
               <div className="space-y-4">
               <Card>
                 <CardHeader className="pb-2">
@@ -1427,7 +1470,6 @@ export default function PrintPage() {
                               <span className="text-sm font-medium">{dupa.description}</span>
                             </div>
 
-                            {}
                             {!dupaHideMaterials && dupa.materials.length > 0 && (
                               <div className="mb-3">
                                 <p className="text-xs font-semibold text-muted-foreground mb-1">A. Materials</p>
@@ -1451,7 +1493,6 @@ export default function PrintPage() {
                               </div>
                             )}
 
-                            {}
                             {!dupaHideLabor && dupa.labor.length > 0 && (
                               <div className="mb-3">
                                 <p className="text-xs font-semibold text-muted-foreground mb-1">B. Labor</p>
@@ -1475,7 +1516,6 @@ export default function PrintPage() {
                               </div>
                             )}
 
-                            {}
                             {!dupaHideEquipment && dupa.equipment.length > 0 && (
                               <div className="mb-3">
                                 <p className="text-xs font-semibold text-muted-foreground mb-1">C. Equipment</p>
@@ -1510,7 +1550,6 @@ export default function PrintPage() {
                 </CardContent>
               </Card>
 
-              {}
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm flex items-center gap-1.5"><Palette className="h-3.5 w-3.5" /> Sample Preview</CardTitle>
@@ -1604,7 +1643,6 @@ export default function PrintPage() {
             </div>
           </TabsContent>
 
-          {}
           <TabsContent value="boq">
             <Card>
               <CardHeader className="pb-2">
@@ -1698,7 +1736,6 @@ export default function PrintPage() {
             </Card>
           </TabsContent>
 
-          {}
           <TabsContent value="header">
             <Card>
               <CardHeader>
@@ -1730,27 +1767,64 @@ export default function PrintPage() {
                       <SelectValue placeholder={`Templates (${DOC_PAGE[editingDoc].label})…`} />
                     </SelectTrigger>
                     <SelectContent>
-                      {templatesForCurrentDoc.map((t) => (
-                        <div key={t.id} className="flex items-center pr-1">
-                          <SelectItem value={t.id} className="flex-1">
+                      <SelectGroup>
+                        <SelectLabel className="text-muted-foreground text-[10px]">Built-in</SelectLabel>
+                        {builtInTemplates.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
                             {t.name}
                           </SelectItem>
-                          {!t.id.startsWith("__builtin_") && (
-                            <button
-                              type="button"
-                              className="ml-1 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                              title="Delete template"
-                              onPointerDown={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                if (window.confirm(`Delete template "${t.name}"?`)) handleDeleteTemplate(t.id);
-                              }}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
+                        ))}
+                      </SelectGroup>
+
+                      {cloudTemplates[editingDoc].length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel className="text-muted-foreground text-[10px] mt-2 border-t pt-1">☁️ Cloud (Shared)</SelectLabel>
+                          {cloudTemplates[editingDoc].map((t) => (
+                            <div key={t.id} className="flex items-center pr-1">
+                              <SelectItem value={t.id} className="flex-1">
+                                {t.name}
+                              </SelectItem>
+                              <button
+                                type="button"
+                                className="ml-1 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                title="Delete shared template"
+                                onPointerDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  if (window.confirm(`Delete shared template "${t.name}"? This will delete it for EVERYONE.`)) handleDeleteTemplate(t.id, true);
+                                }}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </SelectGroup>
+                      )}
+
+                      {customTemplates[editingDoc].length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel className="text-muted-foreground text-[10px] mt-2 border-t pt-1">💻 Local (Just You)</SelectLabel>
+                          {customTemplates[editingDoc].map((t) => (
+                            <div key={t.id} className="flex items-center pr-1">
+                              <SelectItem value={t.id} className="flex-1">
+                                {t.name}
+                              </SelectItem>
+                              <button
+                                type="button"
+                                className="ml-1 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                title="Delete local template"
+                                onPointerDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  if (window.confirm(`Delete local template "${t.name}"?`)) handleDeleteTemplate(t.id, false);
+                                }}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </SelectGroup>
+                      )}
                     </SelectContent>
                   </Select>
                   <Button type="button" size="sm" variant="outline" onClick={openSaveTemplateDialog}>
@@ -1828,24 +1902,48 @@ export default function PrintPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Save Template Dialog */}
       <Dialog open={saveTplOpen} onOpenChange={setSaveTplOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Save as template</DialogTitle>
             <DialogDescription>
-              Save the current {DOC_PAGE[editingDoc].label} settings as a reusable template. It will only appear under {DOC_PAGE[editingDoc].label}.
+              Save the current {DOC_PAGE[editingDoc].label} settings as a reusable template.
             </DialogDescription>
           </DialogHeader>
-          <Input
-            autoFocus
-            placeholder="Template name (e.g., Project Engineer Layout)"
-            value={saveTplName}
-            onChange={(e) => setSaveTplName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && saveTplName.trim()) confirmSaveTemplate(); }}
-          />
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Template Name</Label>
+              <Input
+                autoFocus
+                placeholder="Template name (e.g., Project Engineer Layout)"
+                value={saveTplName}
+                onChange={(e) => setSaveTplName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && saveTplName.trim()) confirmSaveTemplate(); }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Save Location</Label>
+              <Select value={saveTplLocation} onValueChange={(v: any) => setSaveTplLocation(v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cloud">☁️ Cloud (Share with everyone)</SelectItem>
+                  <SelectItem value="local">💻 Local (Only on this device)</SelectItem>
+                </SelectContent>
+              </Select>
+              {saveTplLocation === "cloud" && (
+                <p className="text-[11px] text-muted-foreground">
+                  This will instantly sync to all users via Firebase. Great for company logos!
+                </p>
+              )}
+            </div>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSaveTplOpen(false)}>Cancel</Button>
-            <Button onClick={confirmSaveTemplate} disabled={!saveTplName.trim()}>Save</Button>
+            <Button onClick={confirmSaveTemplate} disabled={!saveTplName.trim()}>Save Template</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
