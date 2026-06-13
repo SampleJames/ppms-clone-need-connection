@@ -19,6 +19,13 @@ import {
 import { Project, PriceListYear, PriceListCategory, PriceListItem } from "@/types";
 import { formatCurrency } from "@/lib/calculations";
 import { UnitCombobox } from "@/components/ui/unit-combobox";
+import { History, Save } from "lucide-react";
+import {
+  savePriceListVersion,
+  subscribePriceListVersions,
+  deletePriceListVersion,
+  type PriceListVersionDoc,
+} from "@/lib/collabStorage";
 
 interface PriceListProps {
   project: Project;
