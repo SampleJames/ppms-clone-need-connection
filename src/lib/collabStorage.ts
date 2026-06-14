@@ -293,25 +293,97 @@ export async function findInviteByToken(token: string): Promise<{ pid: string; i
   return { pid, invite: snap.data() as InviteDoc };
 }
 
-export async function acceptInvite(pid: string, token: string): Promise<boolean> {
+export async function acceptInvite(
+  pid: string,
+  token: string
+): Promise<"pending" | "already_member"> {
   const u = auth.currentUser;
   if (!u) throw new Error("Sign in required");
+
+  // Already a member - nothing to do
+  const existingMember = await getDoc(memberRef(pid, u.uid));
+  if (existingMember.exists()) return "already_member";
+
   const snap = await getDoc(inviteRef(pid, token));
   if (!snap.exists()) throw new Error("Invite not found");
   const inv = snap.data() as InviteDoc;
-  if (inv.used) throw new Error("Invite already used");
   if (inv.expiresAt && inv.expiresAt.toMillis() < Date.now()) throw new Error("Invite expired");
 
-  await setDoc(memberRef(pid, u.uid), {
-    role: inv.role,
+  // Create a join request that the project owner must approve.
+  await setDoc(joinRequestRef(pid, u.uid), {
+    uid: u.uid,
     displayName: u.displayName || u.email || "Member",
     email: u.email || "",
     photoURL: u.photoURL || "",
+    requestedRole: inv.role,
+    requestedAt: serverTimestamp(),
+    inviteToken: token,
+    status: "pending",
+  });
+  await logActivity(pid, "requested to join the project");
+  return "pending";
+}
+
+// ===================== Join Requests (owner approval) =====================
+export interface JoinRequestDoc {
+  uid: string;
+  displayName: string;
+  email: string;
+  photoURL: string;
+  requestedRole: Role;
+  requestedAt: Timestamp | null;
+  inviteToken: string;
+  status: "pending";
+}
+
+export const joinRequestsCol = (pid: string) =>
+  collection(db, "collabProjects", pid, "joinRequests");
+export const joinRequestRef = (pid: string, uid: string) =>
+  doc(db, "collabProjects", pid, "joinRequests", uid);
+
+export function subscribeJoinRequests(
+  pid: string,
+  cb: (list: (JoinRequestDoc & { id: string })[]) => void
+) {
+  return onSnapshot(joinRequestsCol(pid), (snap) => {
+    const out: (JoinRequestDoc & { id: string })[] = [];
+    snap.forEach((d) => out.push({ id: d.id, ...(d.data() as JoinRequestDoc) }));
+    out.sort(
+      (a, b) => (b.requestedAt?.toMillis?.() ?? 0) - (a.requestedAt?.toMillis?.() ?? 0)
+    );
+    cb(out);
+  });
+}
+
+export async function approveJoinRequest(pid: string, uid: string) {
+  const reqSnap = await getDoc(joinRequestRef(pid, uid));
+  if (!reqSnap.exists()) throw new Error("Request not found");
+  const r = reqSnap.data() as JoinRequestDoc;
+  await setDoc(memberRef(pid, uid), {
+    role: r.requestedRole,
+    displayName: r.displayName,
+    email: r.email,
+    photoURL: r.photoURL,
     joinedAt: serverTimestamp(),
   });
-  await updateDoc(projectRef(pid), { memberIds: arrayUnion(u.uid) });
-  await logActivity(pid, "joined the project");
-  return true;
+  await updateDoc(projectRef(pid), { memberIds: arrayUnion(uid) });
+  await deleteDoc(joinRequestRef(pid, uid));
+  await logActivity(pid, `approved ${r.displayName || r.email} to join`);
+}
+
+export async function rejectJoinRequest(pid: string, uid: string) {
+  const reqSnap = await getDoc(joinRequestRef(pid, uid));
+  const r = reqSnap.exists() ? (reqSnap.data() as JoinRequestDoc) : null;
+  await deleteDoc(joinRequestRef(pid, uid));
+  await logActivity(
+    pid,
+    `rejected a join request${r ? ` from ${r.displayName || r.email}` : ""}`
+  );
+}
+
+export async function hasPendingJoinRequest(pid: string, uid: string): Promise<boolean> {
+  const snap = await getDoc(joinRequestRef(pid, uid));
+  return snap.exists();
 }
 
 export async function logActivity(pid: string, action: string, target?: string) {
