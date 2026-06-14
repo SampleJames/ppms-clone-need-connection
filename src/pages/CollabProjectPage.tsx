@@ -452,6 +452,10 @@ import MembersPopover from "@/components/collab/MembersPopover";
 import InviteDialog from "@/components/collab/InviteDialog";
 import ActivityDrawer from "@/components/collab/ActivityDrawer";
 import PresenceAvatars from "@/components/collab/PresenceAvatars";
+import JoinRequestsButton from "@/components/collab/JoinRequestsButton";
+import SignInScreen from "@/components/auth/SignInScreen";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Lock } from "lucide-react";
 
 export default function CollabProjectView() {
   const { id } = useParams<{ id: string }>();
