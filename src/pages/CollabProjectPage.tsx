@@ -708,9 +708,12 @@ export default function CollabProjectView() {
         <div className="flex gap-2 flex-wrap">
           <MembersPopover pid={id} ownerId={doc.ownerId} />
           {myRole === "owner" && (
-            <Button size="sm" onClick={() => setInviteOpen(true)}>
-              <UserPlus className="h-4 w-4 mr-1" /> Invite
-            </Button>
+            <>
+              <JoinRequestsButton pid={id} />
+              <Button size="sm" onClick={() => setInviteOpen(true)}>
+                <UserPlus className="h-4 w-4 mr-1" /> Invite
+              </Button>
+            </>
           )}
           <ActivityDrawer pid={id} />
           <Button variant="outline" size="sm" onClick={() => navigate(`/print?project=${id}&collab=1`)}>
