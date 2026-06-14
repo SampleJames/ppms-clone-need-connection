@@ -452,6 +452,10 @@ import MembersPopover from "@/components/collab/MembersPopover";
 import InviteDialog from "@/components/collab/InviteDialog";
 import ActivityDrawer from "@/components/collab/ActivityDrawer";
 import PresenceAvatars from "@/components/collab/PresenceAvatars";
+import JoinRequestsButton from "@/components/collab/JoinRequestsButton";
+import SignInScreen from "@/components/auth/SignInScreen";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Lock } from "lucide-react";
 
 export default function CollabProjectView() {
   const { id } = useParams<{ id: string }>();
@@ -460,6 +464,7 @@ export default function CollabProjectView() {
   const [doc, setDoc] = useState<CollabProjectDoc | null>(null);
   const [project, setProject] = useState<Project | null>(null);
   const [members, setMembers] = useState<(CollabMemberDoc & { uid: string })[]>([]);
+  const [membersLoaded, setMembersLoaded] = useState(false);
   const [versionDialogOpen, setVersionDialogOpen] = useState(false);
   const [versionName, setVersionName] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -495,7 +500,10 @@ export default function CollabProjectView() {
   // Subscribe to Members list
   useEffect(() => {
     if (!id) return;
-    return subscribeMembers(id, setMembers);
+    return subscribeMembers(id, (list) => {
+      setMembers(list);
+      setMembersLoaded(true);
+    });
   }, [id]);
 
   // Sync real-time workspace activity presence indicator only if logged in
@@ -557,7 +565,46 @@ export default function CollabProjectView() {
     return out;
   }, [project]);
 
-  if (!project || !doc || !id) return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
+  if (!id) return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
+
+  // Require sign-in to view shared projects
+  if (!user) {
+    return (
+      <div>
+        <div className="text-center pt-8 text-sm text-muted-foreground">
+          Sign in to view this shared project.
+        </div>
+        <SignInScreen />
+      </div>
+    );
+  }
+
+  // Wait for both project and members to load before deciding access
+  if (!project || !doc || !membersLoaded) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
+  }
+
+  // Block non-members - link sharing should not grant access
+  if (!myRole) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center p-6">
+        <Card className="max-w-md w-full">
+          <CardHeader className="items-center text-center">
+            <Lock className="h-10 w-10 text-muted-foreground" />
+            <CardTitle className="mt-2">No access to this project</CardTitle>
+            <CardDescription>
+              You are not a member of this shared project. Ask the project owner
+              to send you an invite link, then request to join.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button onClick={() => navigate("/collab")}>Go to My Projects</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
 
   const handleSync = () => {
     if (!canEdit) return;
@@ -661,9 +708,12 @@ export default function CollabProjectView() {
         <div className="flex gap-2 flex-wrap">
           <MembersPopover pid={id} ownerId={doc.ownerId} />
           {myRole === "owner" && (
-            <Button size="sm" onClick={() => setInviteOpen(true)}>
-              <UserPlus className="h-4 w-4 mr-1" /> Invite
-            </Button>
+            <>
+              <JoinRequestsButton pid={id} />
+              <Button size="sm" onClick={() => setInviteOpen(true)}>
+                <UserPlus className="h-4 w-4 mr-1" /> Invite
+              </Button>
+            </>
           )}
           <ActivityDrawer pid={id} />
           <Button variant="outline" size="sm" onClick={() => navigate(`/print?project=${id}&collab=1`)}>
