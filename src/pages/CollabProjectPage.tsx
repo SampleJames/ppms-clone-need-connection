@@ -500,7 +500,10 @@ export default function CollabProjectView() {
   // Subscribe to Members list
   useEffect(() => {
     if (!id) return;
-    return subscribeMembers(id, setMembers);
+    return subscribeMembers(id, (list) => {
+      setMembers(list);
+      setMembersLoaded(true);
+    });
   }, [id]);
 
   // Sync real-time workspace activity presence indicator only if logged in
