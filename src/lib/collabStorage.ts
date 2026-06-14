@@ -260,7 +260,7 @@ export async function leaveProject(pid: string) {
 
 export async function deleteCollabProject(pid: string) {
   
-  for (const sub of ["members", "invites", "presence", "activity"]) {
+  for (const sub of ["members", "invites", "presence", "activity", "joinRequests", "priceListVersions"]) {
     const s = await getDocs(collection(db, "collabProjects", pid, sub));
     await Promise.all(s.docs.map((d) => deleteDoc(d.ref)));
   }
