@@ -565,7 +565,46 @@ export default function CollabProjectView() {
     return out;
   }, [project]);
 
-  if (!project || !doc || !id) return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
+  if (!id) return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
+
+  // Require sign-in to view shared projects
+  if (!user) {
+    return (
+      <div>
+        <div className="text-center pt-8 text-sm text-muted-foreground">
+          Sign in to view this shared project.
+        </div>
+        <SignInScreen />
+      </div>
+    );
+  }
+
+  // Wait for both project and members to load before deciding access
+  if (!project || !doc || !membersLoaded) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
+  }
+
+  // Block non-members - link sharing should not grant access
+  if (!myRole) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center p-6">
+        <Card className="max-w-md w-full">
+          <CardHeader className="items-center text-center">
+            <Lock className="h-10 w-10 text-muted-foreground" />
+            <CardTitle className="mt-2">No access to this project</CardTitle>
+            <CardDescription>
+              You are not a member of this shared project. Ask the project owner
+              to send you an invite link, then request to join.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button onClick={() => navigate("/collab")}>Go to My Projects</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
 
   const handleSync = () => {
     if (!canEdit) return;
