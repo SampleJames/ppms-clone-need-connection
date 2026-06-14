@@ -464,6 +464,7 @@ export default function CollabProjectView() {
   const [doc, setDoc] = useState<CollabProjectDoc | null>(null);
   const [project, setProject] = useState<Project | null>(null);
   const [members, setMembers] = useState<(CollabMemberDoc & { uid: string })[]>([]);
+  const [membersLoaded, setMembersLoaded] = useState(false);
   const [versionDialogOpen, setVersionDialogOpen] = useState(false);
   const [versionName, setVersionName] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
