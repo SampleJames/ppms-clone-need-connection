@@ -155,6 +155,30 @@ export function subscribeMyProjects(uid: string, cb: (list: CollabProjectDoc[]) 
   });
 }
 
+export function subscribeAllProjects(cb: (list: CollabProjectDoc[]) => void) {
+  return onSnapshot(collection(db, "collabProjects"), (snap) => {
+    const out: CollabProjectDoc[] = [];
+    snap.forEach((d) => out.push({ id: d.id, ...(d.data() as Omit<CollabProjectDoc, "id">) }));
+    out.sort((a, b) => {
+      const at = a.updatedAt?.toMillis?.() ?? 0;
+      const bt = b.updatedAt?.toMillis?.() ?? 0;
+      return bt - at;
+    });
+    cb(out);
+  });
+}
+
+export async function fetchOwnerInfo(pid: string, ownerId: string): Promise<{ email: string; name: string }> {
+  try {
+    const snap = await getDoc(memberRef(pid, ownerId));
+    if (snap.exists()) {
+      const m = snap.data() as CollabMemberDoc;
+      return { email: m.email || "", name: m.displayName || m.email || "Owner" };
+    }
+  } catch {}
+  return { email: "", name: "Owner" };
+}
+
 const pending = new Map<string, { project: Project; timer: number }>();
 const DEBOUNCE_MS = 400;
 let lastSentAt = new Map<string, number>();
