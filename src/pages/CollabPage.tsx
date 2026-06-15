@@ -24,6 +24,7 @@ export default function CollabPage() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<CollabProjectDoc[]>([]);
   const [allProjects, setAllProjects] = useState<CollabProjectDoc[]>([]);
+  const [deletedProjects, setDeletedProjects] = useState<DeletedProjectDoc[]>([]);
   const [ownerInfoMap, setOwnerInfoMap] = useState<Record<string, { email: string; name: string }>>({});
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
@@ -32,10 +33,7 @@ export default function CollabPage() {
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
 
-  const isAdmin = useMemo(
-    () => !!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase()),
-    [user]
-  );
+  const isAdmin = useMemo(() => isAdminEmail(user?.email), [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -45,6 +43,11 @@ export default function CollabPage() {
   useEffect(() => {
     if (!isAdmin) return;
     return subscribeAllProjects(setAllProjects);
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    return subscribeDeletedProjects(setDeletedProjects);
   }, [isAdmin]);
 
   // Backfill owner email/name for legacy projects missing ownerEmail
