@@ -444,7 +444,7 @@ import Templates from "@/components/Templates";
 import {
   CollabMemberDoc, CollabProjectDoc, docToProject, flushPending,
   getLastSentAt, logActivity, queueProjectWrite, subscribeMembers,
-  subscribeProject,
+  subscribeProject, isAdminEmail, deleteCollabProject,
 } from "@/lib/collabStorage";
 import { useAuth } from "@/contexts/AuthContext";
 import { clearPresence, setPresence } from "@/lib/collabStorage";
@@ -455,7 +455,7 @@ import PresenceAvatars from "@/components/collab/PresenceAvatars";
 import JoinRequestsButton from "@/components/collab/JoinRequestsButton";
 import SignInScreen from "@/components/auth/SignInScreen";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Lock } from "lucide-react";
+import { Lock, Shield, Trash2 } from "lucide-react";
 
 export default function CollabProjectView() {
   const { id } = useParams<{ id: string }>();
@@ -506,9 +506,14 @@ export default function CollabProjectView() {
     });
   }, [id]);
 
-  // Sync real-time workspace activity presence indicator only if logged in
+  const isAdmin = isAdminEmail(user?.email);
+
+  // Sync real-time workspace activity presence indicator only if logged in AND a real member
+  // (admins auto-viewing other people's projects should not show up as a member circle)
   useEffect(() => {
     if (!id || !user) return;
+    const isMember = members.some((m) => m.uid === user.uid);
+    if (!isMember) return;
     setPresence(id, tab);
     const t = window.setInterval(() => setPresence(id, tab), 15_000);
     const beforeUnload = () => clearPresence(id);
@@ -519,7 +524,7 @@ export default function CollabProjectView() {
       clearPresence(id);
       flushPending(id);
     };
-  }, [id, user, tab]);
+  }, [id, user, tab, members]);
 
   // Evaluate dynamic structural permission roles securely
   const myRole = useMemo(() => {
@@ -527,8 +532,10 @@ export default function CollabProjectView() {
     const m = members.find((x) => x.uid === user.uid);
     return m?.role ?? null;
   }, [members, user]);
-  
-  const canEdit = myRole === "owner" || myRole === "editor";
+
+  // Admin gets full edit/delete access on any project
+  const canEdit = myRole === "owner" || myRole === "editor" || isAdmin;
+  const canDelete = myRole === "owner" || isAdmin;
 
   const save = useCallback(
     (updated: Project) => {
@@ -584,8 +591,8 @@ export default function CollabProjectView() {
     return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
   }
 
-  // Block non-members - link sharing should not grant access
-  if (!myRole) {
+  // Block non-members - link sharing should not grant access (admins bypass)
+  if (!myRole && !isAdmin) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-6">
         <Card className="max-w-md w-full">
@@ -693,6 +700,11 @@ export default function CollabProjectView() {
                 <Eye className="h-3 w-3 mr-1" /> Read-only
               </span>
             )}
+            {isAdmin && !myRole && (
+              <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
+                <Shield className="h-3 w-3 mr-1" /> Admin access
+              </span>
+            )}
           </div>
           {project.description && (
             <p className="text-sm text-muted-foreground truncate">{project.description}</p>
@@ -714,6 +726,27 @@ export default function CollabProjectView() {
                 <UserPlus className="h-4 w-4 mr-1" /> Invite
               </Button>
             </>
+          )}
+          {canDelete && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive border-destructive/40 hover:bg-destructive/10"
+              onClick={() => {
+                if (confirm(`Delete "${project.name}"? This cannot be undone.`)) {
+                  deleteCollabProject(id)
+                    .then(() => {
+                      toast({ title: "Project deleted" });
+                      navigate("/collab");
+                    })
+                    .catch((e) =>
+                      toast({ title: "Delete failed", description: (e as Error).message, variant: "destructive" })
+                    );
+                }
+              }}
+            >
+              <Trash2 className="h-4 w-4 mr-1" /> Delete
+            </Button>
           )}
           <ActivityDrawer pid={id} />
           <Button variant="outline" size="sm" onClick={() => navigate(`/print?project=${id}&collab=1`)}>

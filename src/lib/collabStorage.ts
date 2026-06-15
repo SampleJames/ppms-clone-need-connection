@@ -87,6 +87,39 @@ export const presenceCol = (pid: string) => collection(db, "collabProjects", pid
 export const presenceRef = (pid: string, uid: string) =>
   doc(db, "collabProjects", pid, "presence", uid);
 export const activityCol = (pid: string) => collection(db, "collabProjects", pid, "activity");
+export const deletedProjectsCol = () => collection(db, "deletedProjects");
+
+// ===================== Admin =====================
+export const ADMIN_EMAILS = ["mjfernandez@tsu.edu.ph"];
+export function isAdminEmail(email?: string | null): boolean {
+  if (!email) return false;
+  return ADMIN_EMAILS.includes(email.toLowerCase());
+}
+
+// ===================== Deleted Projects History =====================
+export interface DeletedProjectDoc {
+  id: string;
+  projectId: string;
+  name: string;
+  description: string;
+  ownerId: string;
+  ownerEmail: string;
+  ownerName: string;
+  deletedByUid: string;
+  deletedByEmail: string;
+  deletedByName: string;
+  deletedAt: Timestamp | null;
+  memberCount: number;
+}
+
+export function subscribeDeletedProjects(cb: (list: DeletedProjectDoc[]) => void) {
+  return onSnapshot(deletedProjectsCol(), (snap) => {
+    const out: DeletedProjectDoc[] = [];
+    snap.forEach((d) => out.push({ id: d.id, ...(d.data() as Omit<DeletedProjectDoc, "id">) }));
+    out.sort((a, b) => (b.deletedAt?.toMillis?.() ?? 0) - (a.deletedAt?.toMillis?.() ?? 0));
+    cb(out);
+  });
+}
 
 const COLORS = [
   "#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4",
@@ -287,7 +320,30 @@ export async function leaveProject(pid: string) {
 }
 
 export async function deleteCollabProject(pid: string) {
-  
+  // Record a deletion entry first so admins can see deletion history
+  try {
+    const u = auth.currentUser;
+    const projSnap = await getDoc(projectRef(pid));
+    if (projSnap.exists()) {
+      const p = projSnap.data() as Omit<CollabProjectDoc, "id">;
+      await addDoc(deletedProjectsCol(), {
+        projectId: pid,
+        name: p.name || "",
+        description: p.description || "",
+        ownerId: p.ownerId || "",
+        ownerEmail: p.ownerEmail || "",
+        ownerName: p.ownerName || "",
+        deletedByUid: u?.uid || "",
+        deletedByEmail: u?.email || "",
+        deletedByName: u?.displayName || u?.email || "Someone",
+        deletedAt: serverTimestamp(),
+        memberCount: p.memberIds?.length ?? 0,
+      });
+    }
+  } catch (e) {
+    console.warn("failed to record deletion history", e);
+  }
+
   for (const sub of ["members", "invites", "presence", "activity", "joinRequests", "priceListVersions"]) {
     const s = await getDocs(collection(db, "collabProjects", pid, sub));
     await Promise.all(s.docs.map((d) => deleteDoc(d.ref)));
