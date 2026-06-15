@@ -108,6 +108,8 @@ export async function createCollabProject(name: string, description: string): Pr
   const ref = doc(collection(db, "collabProjects"));
   const data: Omit<CollabProjectDoc, "id"> = {
     ownerId: u.uid,
+    ownerEmail: u.email || "",
+    ownerName: u.displayName || u.email || "Owner",
     name,
     description,
     createdAt: serverTimestamp() as never,
