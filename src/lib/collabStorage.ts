@@ -31,6 +31,8 @@ export interface CollabMemberDoc {
 export interface CollabProjectDoc {
   id: string;
   ownerId: string;
+  ownerEmail?: string;
+  ownerName?: string;
   name: string;
   description: string;
   createdAt: Timestamp | null;
@@ -106,6 +108,8 @@ export async function createCollabProject(name: string, description: string): Pr
   const ref = doc(collection(db, "collabProjects"));
   const data: Omit<CollabProjectDoc, "id"> = {
     ownerId: u.uid,
+    ownerEmail: u.email || "",
+    ownerName: u.displayName || u.email || "Owner",
     name,
     description,
     createdAt: serverTimestamp() as never,
@@ -149,6 +153,30 @@ export function subscribeMyProjects(uid: string, cb: (list: CollabProjectDoc[]) 
     });
     cb(out);
   });
+}
+
+export function subscribeAllProjects(cb: (list: CollabProjectDoc[]) => void) {
+  return onSnapshot(collection(db, "collabProjects"), (snap) => {
+    const out: CollabProjectDoc[] = [];
+    snap.forEach((d) => out.push({ id: d.id, ...(d.data() as Omit<CollabProjectDoc, "id">) }));
+    out.sort((a, b) => {
+      const at = a.updatedAt?.toMillis?.() ?? 0;
+      const bt = b.updatedAt?.toMillis?.() ?? 0;
+      return bt - at;
+    });
+    cb(out);
+  });
+}
+
+export async function fetchOwnerInfo(pid: string, ownerId: string): Promise<{ email: string; name: string }> {
+  try {
+    const snap = await getDoc(memberRef(pid, ownerId));
+    if (snap.exists()) {
+      const m = snap.data() as CollabMemberDoc;
+      return { email: m.email || "", name: m.displayName || m.email || "Owner" };
+    }
+  } catch {}
+  return { email: "", name: "Owner" };
 }
 
 const pending = new Map<string, { project: Project; timer: number }>();
