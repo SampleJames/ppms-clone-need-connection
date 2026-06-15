@@ -444,7 +444,7 @@ import Templates from "@/components/Templates";
 import {
   CollabMemberDoc, CollabProjectDoc, docToProject, flushPending,
   getLastSentAt, logActivity, queueProjectWrite, subscribeMembers,
-  subscribeProject,
+  subscribeProject, isAdminEmail, deleteCollabProject,
 } from "@/lib/collabStorage";
 import { useAuth } from "@/contexts/AuthContext";
 import { clearPresence, setPresence } from "@/lib/collabStorage";
@@ -455,7 +455,7 @@ import PresenceAvatars from "@/components/collab/PresenceAvatars";
 import JoinRequestsButton from "@/components/collab/JoinRequestsButton";
 import SignInScreen from "@/components/auth/SignInScreen";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Lock } from "lucide-react";
+import { Lock, Shield, Trash2 } from "lucide-react";
 
 export default function CollabProjectView() {
   const { id } = useParams<{ id: string }>();
@@ -506,9 +506,14 @@ export default function CollabProjectView() {
     });
   }, [id]);
 
-  // Sync real-time workspace activity presence indicator only if logged in
+  const isAdmin = isAdminEmail(user?.email);
+
+  // Sync real-time workspace activity presence indicator only if logged in AND a real member
+  // (admins auto-viewing other people's projects should not show up as a member circle)
   useEffect(() => {
     if (!id || !user) return;
+    const isMember = members.some((m) => m.uid === user.uid);
+    if (!isMember) return;
     setPresence(id, tab);
     const t = window.setInterval(() => setPresence(id, tab), 15_000);
     const beforeUnload = () => clearPresence(id);
@@ -519,7 +524,7 @@ export default function CollabProjectView() {
       clearPresence(id);
       flushPending(id);
     };
-  }, [id, user, tab]);
+  }, [id, user, tab, members]);
 
   // Evaluate dynamic structural permission roles securely
   const myRole = useMemo(() => {
@@ -527,8 +532,10 @@ export default function CollabProjectView() {
     const m = members.find((x) => x.uid === user.uid);
     return m?.role ?? null;
   }, [members, user]);
-  
-  const canEdit = myRole === "owner" || myRole === "editor";
+
+  // Admin gets full edit/delete access on any project
+  const canEdit = myRole === "owner" || myRole === "editor" || isAdmin;
+  const canDelete = myRole === "owner" || isAdmin;
 
   const save = useCallback(
     (updated: Project) => {
@@ -584,8 +591,8 @@ export default function CollabProjectView() {
     return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
   }
 
-  // Block non-members - link sharing should not grant access
-  if (!myRole) {
+  // Block non-members - link sharing should not grant access (admins bypass)
+  if (!myRole && !isAdmin) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-6">
         <Card className="max-w-md w-full">
