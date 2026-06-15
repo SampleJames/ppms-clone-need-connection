@@ -31,6 +31,8 @@ export interface CollabMemberDoc {
 export interface CollabProjectDoc {
   id: string;
   ownerId: string;
+  ownerEmail?: string;
+  ownerName?: string;
   name: string;
   description: string;
   createdAt: Timestamp | null;
