@@ -700,6 +700,11 @@ export default function CollabProjectView() {
                 <Eye className="h-3 w-3 mr-1" /> Read-only
               </span>
             )}
+            {isAdmin && !myRole && (
+              <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
+                <Shield className="h-3 w-3 mr-1" /> Admin access
+              </span>
+            )}
           </div>
           {project.description && (
             <p className="text-sm text-muted-foreground truncate">{project.description}</p>
@@ -721,6 +726,27 @@ export default function CollabProjectView() {
                 <UserPlus className="h-4 w-4 mr-1" /> Invite
               </Button>
             </>
+          )}
+          {canDelete && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive border-destructive/40 hover:bg-destructive/10"
+              onClick={() => {
+                if (confirm(`Delete "${project.name}"? This cannot be undone.`)) {
+                  deleteCollabProject(id)
+                    .then(() => {
+                      toast({ title: "Project deleted" });
+                      navigate("/collab");
+                    })
+                    .catch((e) =>
+                      toast({ title: "Delete failed", description: (e as Error).message, variant: "destructive" })
+                    );
+                }
+              }}
+            >
+              <Trash2 className="h-4 w-4 mr-1" /> Delete
+            </Button>
           )}
           <ActivityDrawer pid={id} />
           <Button variant="outline" size="sm" onClick={() => navigate(`/print?project=${id}&collab=1`)}>
