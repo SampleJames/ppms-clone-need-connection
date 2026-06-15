@@ -191,6 +191,50 @@ export default function CollabPage() {
     )
   );
 
+  const renderDeletedProjects = () => (
+    deletedProjects.length === 0 ? (
+      <Card className="mt-6">
+        <CardContent className="py-12 text-center text-muted-foreground">
+          <Trash className="h-12 w-12 mx-auto mb-3 opacity-40" />
+          <p className="font-medium">No deleted projects yet</p>
+          <p className="text-sm">When a project is deleted, it will appear here.</p>
+        </CardContent>
+      </Card>
+    ) : (
+      <div className="grid gap-3 mt-4">
+        {deletedProjects.map((d) => (
+          <Card key={d.id}>
+            <CardContent className="py-4 px-5">
+              <div className="flex items-center gap-2">
+                <Trash className="h-4 w-4 text-destructive" />
+                <p className="font-semibold truncate">{d.name || "(untitled)"}</p>
+              </div>
+              {d.description && (
+                <p className="text-sm text-muted-foreground mt-0.5">{d.description}</p>
+              )}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
+                <span className="inline-flex items-center gap-1">
+                  <UserIcon className="h-3.5 w-3.5" />
+                  Owner: {d.ownerName || "Unknown"}
+                  {d.ownerEmail ? ` (${d.ownerEmail})` : ""}
+                </span>
+                <span className="inline-flex items-center gap-1 text-destructive">
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Deleted by {d.deletedByName || d.deletedByEmail || "Unknown"}
+                  {d.deletedByEmail && d.deletedByName ? ` (${d.deletedByEmail})` : ""}
+                </span>
+                {d.deletedAt?.toDate && (
+                  <span>on {d.deletedAt.toDate().toLocaleString()}</span>
+                )}
+                <span>{d.memberCount} member{d.memberCount === 1 ? "" : "s"}</span>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    )
+  );
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-2">
@@ -208,9 +252,16 @@ export default function CollabPage() {
             <TabsTrigger value="all">
               <Shield className="h-3.5 w-3.5 mr-1" /> All Users' Projects
             </TabsTrigger>
+            <TabsTrigger value="deleted">
+              <Trash className="h-3.5 w-3.5 mr-1" /> Deleted Projects
+              {deletedProjects.length > 0 && (
+                <span className="ml-1 text-[10px] opacity-70">({deletedProjects.length})</span>
+              )}
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="mine">{renderMyProjects()}</TabsContent>
           <TabsContent value="all">{renderAllProjects()}</TabsContent>
+          <TabsContent value="deleted">{renderDeletedProjects()}</TabsContent>
         </Tabs>
       ) : (
         renderMyProjects()
