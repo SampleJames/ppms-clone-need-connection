@@ -34,6 +34,8 @@ export default function MembersPopover({ pid, ownerId }: Props) {
   useEffect(() => subscribePresence(pid, setPresence), [pid]);
 
   const isOwner = user?.uid === ownerId;
+  const isAdmin = isAdminEmail(user?.email);
+  const canManage = isOwner || isAdmin;
   const onlineUids = new Set(
     presence
       .filter((p) => {
