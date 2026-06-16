@@ -28,6 +28,9 @@ export default function CollabPage() {
   const [projects, setProjects] = useState<CollabProjectDoc[]>([]);
   const [allProjects, setAllProjects] = useState<CollabProjectDoc[]>([]);
   const [deletedProjects, setDeletedProjects] = useState<DeletedProjectDoc[]>([]);
+  const [mineLoading, setMineLoading] = useState(true);
+  const [allLoading, setAllLoading] = useState(true);
+  const [deletedLoading, setDeletedLoading] = useState(true);
   const [ownerInfoMap, setOwnerInfoMap] = useState<Record<string, { email: string; name: string }>>({});
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
