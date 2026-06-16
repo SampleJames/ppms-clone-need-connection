@@ -21,6 +21,7 @@ type ViewMode = "list" | "grid" | "single" | "compact";
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
@@ -28,6 +29,16 @@ export default function Dashboard() {
   const [renameName, setRenameName] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  const gridClass = useMemo(() => {
+    switch (viewMode) {
+      case "list": return "grid grid-cols-1 gap-2";
+      case "single": return "grid grid-cols-1 gap-4";
+      case "compact": return "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3";
+      case "grid":
+      default: return "grid grid-cols-1 md:grid-cols-2 gap-3";
+    }
+  }, [viewMode]);
 
   const reload = () => setProjects(getProjects());
   useEffect(reload, []);
