@@ -97,36 +97,61 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      <div className="relative mb-4 max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search projects..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
+      <div className="flex items-center gap-2 mb-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search projects..."
+            className="pl-8"
+          />
+        </div>
+        <div className="inline-flex rounded-md border bg-background overflow-hidden">
+          {([
+            { mode: "list", icon: List, label: "List" },
+            { mode: "grid", icon: LayoutGrid, label: "Grid" },
+            { mode: "single", icon: Square, label: "Single" },
+            { mode: "compact", icon: Grid3x3, label: "Compact" },
+          ] as const).map(({ mode, icon: Icon, label }) => (
+            <button
+              key={mode}
+              type="button"
+              title={label}
+              onClick={() => setViewMode(mode)}
+              className={cn(
+                "p-2 transition-colors",
+                viewMode === mode
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-muted text-muted-foreground"
+              )}
+            >
+              <Icon className="h-4 w-4" />
+            </button>
+          ))}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
-        <Card>
+        <Card className="mt-6">
           <CardContent className="py-12 text-center text-muted-foreground">
             <FolderOpen className="h-12 w-12 mx-auto mb-3 opacity-40" />
-            <p className="font-medium">No projects yet</p>
-            <p className="text-sm">Create your first project to get started.</p>
+            <p className="font-medium">{search ? "No matching projects" : "No projects yet"}</p>
+            {!search && <p className="text-sm">Create your first project to get started.</p>}
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3">
+        <div className={gridClass}>
           {filtered.map((p) => (
             <Card
               key={p.id}
               className="hover:shadow-md transition-shadow cursor-pointer"
               onClick={() => navigate(`/project/${p.id}`)}
             >
-              <CardContent className="flex items-center justify-between py-4 px-5">
+              <CardContent className={cn("flex items-center justify-between", viewMode === "compact" ? "py-3 px-4" : "py-4 px-5")}>
                 <div className="min-w-0">
                   <p className="font-semibold truncate">{p.name}</p>
-                  {p.description && (
+                  {p.description && viewMode !== "compact" && (
                     <p className="text-sm text-muted-foreground truncate">{p.description}</p>
                   )}
                   <p className="text-xs text-muted-foreground mt-1">
