@@ -61,17 +61,29 @@ export default function CollabPage() {
 
   useEffect(() => {
     if (!user) return;
-    return subscribeMyProjects(user.uid, setProjects);
+    setMineLoading(true);
+    return subscribeMyProjects(user.uid, (p) => {
+      setProjects(p);
+      setMineLoading(false);
+    });
   }, [user]);
 
   useEffect(() => {
     if (!isAdmin) return;
-    return subscribeAllProjects(setAllProjects);
+    setAllLoading(true);
+    return subscribeAllProjects((p) => {
+      setAllProjects(p);
+      setAllLoading(false);
+    });
   }, [isAdmin]);
 
   useEffect(() => {
     if (!isAdmin) return;
-    return subscribeDeletedProjects(setDeletedProjects);
+    setDeletedLoading(true);
+    return subscribeDeletedProjects((p) => {
+      setDeletedProjects(p);
+      setDeletedLoading(false);
+    });
   }, [isAdmin]);
 
   // Backfill owner email/name for legacy projects missing ownerEmail
