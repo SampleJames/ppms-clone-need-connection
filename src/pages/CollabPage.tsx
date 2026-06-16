@@ -77,8 +77,10 @@ export default function CollabPage() {
     setMineLoading(true);
     return subscribeMyProjects(user.uid, (p) => {
       setProjects(p);
+      writeCount("mine", p.length);
       setMineLoading(false);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   useEffect(() => {
@@ -86,8 +88,10 @@ export default function CollabPage() {
     setAllLoading(true);
     return subscribeAllProjects((p) => {
       setAllProjects(p);
+      writeCount("all", p.length);
       setAllLoading(false);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
 
   useEffect(() => {
@@ -95,12 +99,11 @@ export default function CollabPage() {
     setDeletedLoading(true);
     return subscribeDeletedProjects((p) => {
       setDeletedProjects(p);
+      writeCount("deleted", p.length);
       setDeletedLoading(false);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
-
-  // Backfill owner email/name for legacy projects missing ownerEmail
-  useEffect(() => {
     if (!isAdmin) return;
     const missing = allProjects.filter(
       (p) => !p.ownerEmail && p.ownerId && !ownerInfoMap[p.id]
