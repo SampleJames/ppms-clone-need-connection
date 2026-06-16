@@ -270,6 +270,7 @@ export default function CollabPage() {
   );
 
   const renderDeletedProjects = () => (
+    deletedLoading ? renderLoader("Loading deleted projects…") :
     filteredDeleted.length === 0 ? (
       <Card className="mt-6">
         <CardContent className="py-12 text-center text-muted-foreground">
