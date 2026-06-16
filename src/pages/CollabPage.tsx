@@ -144,7 +144,26 @@ export default function CollabPage() {
     }
   };
 
+  const renderLoader = (label: string) => (
+    <div className={gridClass}>
+      {Array.from({ length: 4 }).map((_, i) => (
+        <Card key={i} className="overflow-hidden">
+          <CardContent className={cn(viewMode === "compact" ? "py-3 px-4" : "py-4 px-5")}>
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+              <div className="h-4 w-40 rounded bg-muted animate-pulse" />
+            </div>
+            <div className="h-3 w-60 rounded bg-muted animate-pulse mt-3" />
+            <div className="h-3 w-32 rounded bg-muted animate-pulse mt-2" />
+          </CardContent>
+        </Card>
+      ))}
+      <p className="col-span-full text-center text-xs text-muted-foreground mt-1">{label}</p>
+    </div>
+  );
+
   const renderMyProjects = () => (
+    mineLoading ? renderLoader("Loading your shared projects…") :
     filteredMy.length === 0 ? (
       <Card className="mt-6">
         <CardContent className="py-12 text-center text-muted-foreground">
