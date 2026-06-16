@@ -10,6 +10,7 @@ import {
   subscribePresence,
   transferOwnership,
   leaveProject,
+  isAdminEmail,
 } from "@/lib/collabStorage";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
