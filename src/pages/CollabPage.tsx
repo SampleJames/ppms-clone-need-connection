@@ -6,18 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Users, FolderOpen, Trash2, Crown, Pencil, Shield, Mail, Trash, User as UserIcon } from "lucide-react";
+import { Plus, Users, FolderOpen, Trash2, Crown, Pencil, Shield, Mail, Trash, User as UserIcon, Search, List, LayoutGrid, Square, Grid3x3, RotateCcw } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import {
   CollabProjectDoc, createCollabProject, deleteCollabProject, subscribeMyProjects,
   subscribeAllProjects, fetchOwnerInfo, isAdminEmail,
-  DeletedProjectDoc, subscribeDeletedProjects,
+  DeletedProjectDoc, subscribeDeletedProjects, restoreDeletedProject,
 } from "@/lib/collabStorage";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+
+type ViewMode = "list" | "grid" | "single" | "compact";
 
 export default function CollabPage() {
   const { user, loading } = useAuth();
@@ -32,8 +35,26 @@ export default function CollabPage() {
   const [editProject, setEditProject] = useState<CollabProjectDoc | null>(null);
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
+  const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
   const isAdmin = useMemo(() => isAdminEmail(user?.email), [user]);
+
+  const gridClass = useMemo(() => {
+    switch (viewMode) {
+      case "list": return "grid grid-cols-1 gap-2 mt-4";
+      case "single": return "grid grid-cols-1 gap-4 mt-4";
+      case "compact": return "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mt-4";
+      case "grid":
+      default: return "grid grid-cols-1 md:grid-cols-2 gap-3 mt-4";
+    }
+  }, [viewMode]);
+
+  const matchesSearch = (s: string) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return s.toLowerCase().includes(q);
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -86,31 +107,53 @@ export default function CollabPage() {
     }
   };
 
+  const filteredMy = projects.filter((p) =>
+    matchesSearch(`${p.name} ${p.description ?? ""}`)
+  );
+  const filteredAll = allProjects.filter((p) => {
+    const oe = p.ownerEmail || ownerInfoMap[p.id]?.email || "";
+    const on = p.ownerName || ownerInfoMap[p.id]?.name || "";
+    return matchesSearch(`${p.name} ${p.description ?? ""} ${oe} ${on}`);
+  });
+  const filteredDeleted = deletedProjects.filter((d) =>
+    matchesSearch(`${d.name} ${d.description ?? ""} ${d.ownerEmail ?? ""} ${d.deletedByEmail ?? ""} ${d.deletedByName ?? ""}`)
+  );
+
+  const handleRestore = async (d: DeletedProjectDoc) => {
+    try {
+      const pid = await restoreDeletedProject(d.id);
+      toast({ title: "Project restored", description: `"${d.name}" has been restored.` });
+      navigate(`/collab/project/${pid}`);
+    } catch (e) {
+      toast({ title: "Restore failed", description: (e as Error).message, variant: "destructive" });
+    }
+  };
+
   const renderMyProjects = () => (
-    projects.length === 0 ? (
+    filteredMy.length === 0 ? (
       <Card className="mt-6">
         <CardContent className="py-12 text-center text-muted-foreground">
           <FolderOpen className="h-12 w-12 mx-auto mb-3 opacity-40" />
-          <p className="font-medium">No projects yet</p>
-          <p className="text-sm">Create one or accept an invite link to get started.</p>
+          <p className="font-medium">{search ? "No matching projects" : "No projects yet"}</p>
+          {!search && <p className="text-sm">Create one or accept an invite link to get started.</p>}
         </CardContent>
       </Card>
     ) : (
-      <div className="grid gap-3 mt-4">
-        {projects.map((p) => {
+      <div className={gridClass}>
+        {filteredMy.map((p) => {
           const isOwner = p.ownerId === user.uid;
           return (
             <Card key={p.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate(`/collab/project/${p.id}`)}>
-              <CardContent className="flex items-center justify-between py-4 px-5">
+              <CardContent className={cn("flex items-center justify-between", viewMode === "compact" ? "py-3 px-4" : "py-4 px-5")}>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-semibold truncate">{p.name}</p>
                     {isOwner && <Crown className="h-3.5 w-3.5 text-amber-500" />}
                   </div>
-                  {p.description && <p className="text-sm text-muted-foreground truncate">{p.description}</p>}
+                  {p.description && viewMode !== "compact" && <p className="text-sm text-muted-foreground truncate">{p.description}</p>}
                   <p className="text-xs text-muted-foreground mt-1">
                     {p.memberIds?.length ?? 1} member{(p.memberIds?.length ?? 1) === 1 ? "" : "s"}
-                    {p.lastEditedByName ? ` · last edit by ${p.lastEditedByName}` : ""}
+                    {p.lastEditedByName && viewMode !== "compact" ? ` · last edit by ${p.lastEditedByName}` : ""}
                     {p.updatedAt?.toDate ? ` · ${p.updatedAt.toDate().toLocaleDateString()}` : ""}
                   </p>
                 </div>
@@ -151,27 +194,27 @@ export default function CollabPage() {
   );
 
   const renderAllProjects = () => (
-    allProjects.length === 0 ? (
+    filteredAll.length === 0 ? (
       <Card className="mt-6">
         <CardContent className="py-12 text-center text-muted-foreground">
           <FolderOpen className="h-12 w-12 mx-auto mb-3 opacity-40" />
-          <p className="font-medium">No projects in the system yet</p>
+          <p className="font-medium">{search ? "No matching projects" : "No projects in the system yet"}</p>
         </CardContent>
       </Card>
     ) : (
-      <div className="grid gap-3 mt-4">
-        {allProjects.map((p) => {
+      <div className={gridClass}>
+        {filteredAll.map((p) => {
           const ownerEmail = p.ownerEmail || ownerInfoMap[p.id]?.email || "";
           const ownerName = p.ownerName || ownerInfoMap[p.id]?.name || "Owner";
           const isMine = p.ownerId === user.uid;
           return (
             <Card key={p.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate(`/collab/project/${p.id}`)}>
-              <CardContent className="py-4 px-5">
+              <CardContent className={cn(viewMode === "compact" ? "py-3 px-4" : "py-4 px-5")}>
                 <div className="flex items-center gap-2">
                   <p className="font-semibold truncate">{p.name}</p>
                   {isMine && <Crown className="h-3.5 w-3.5 text-amber-500" />}
                 </div>
-                {p.description && (
+                {p.description && viewMode !== "compact" && (
                   <p className="text-sm text-muted-foreground mt-0.5">{p.description}</p>
                 )}
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
@@ -179,9 +222,9 @@ export default function CollabPage() {
                     <Mail className="h-3.5 w-3.5" />
                     {ownerEmail || <em className="opacity-70">unknown</em>}
                   </span>
-                  <span>Owner: {ownerName}</span>
+                  {viewMode !== "compact" && <span>Owner: {ownerName}</span>}
                   <span>{p.memberIds?.length ?? 1} member{(p.memberIds?.length ?? 1) === 1 ? "" : "s"}</span>
-                  {p.updatedAt?.toDate && <span>Updated {p.updatedAt.toDate().toLocaleDateString()}</span>}
+                  {p.updatedAt?.toDate && viewMode !== "compact" && <span>Updated {p.updatedAt.toDate().toLocaleDateString()}</span>}
                 </div>
               </CardContent>
             </Card>
@@ -192,41 +235,55 @@ export default function CollabPage() {
   );
 
   const renderDeletedProjects = () => (
-    deletedProjects.length === 0 ? (
+    filteredDeleted.length === 0 ? (
       <Card className="mt-6">
         <CardContent className="py-12 text-center text-muted-foreground">
           <Trash className="h-12 w-12 mx-auto mb-3 opacity-40" />
-          <p className="font-medium">No deleted projects yet</p>
-          <p className="text-sm">When a project is deleted, it will appear here.</p>
+          <p className="font-medium">{search ? "No matching deleted projects" : "No deleted projects yet"}</p>
+          {!search && <p className="text-sm">When a project is deleted, it will appear here.</p>}
         </CardContent>
       </Card>
     ) : (
-      <div className="grid gap-3 mt-4">
-        {deletedProjects.map((d) => (
+      <div className={gridClass}>
+        {filteredDeleted.map((d) => (
           <Card key={d.id}>
-            <CardContent className="py-4 px-5">
-              <div className="flex items-center gap-2">
-                <Trash className="h-4 w-4 text-destructive" />
-                <p className="font-semibold truncate">{d.name || "(untitled)"}</p>
-              </div>
-              {d.description && (
-                <p className="text-sm text-muted-foreground mt-0.5">{d.description}</p>
-              )}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
-                <span className="inline-flex items-center gap-1">
-                  <UserIcon className="h-3.5 w-3.5" />
-                  Owner: {d.ownerName || "Unknown"}
-                  {d.ownerEmail ? ` (${d.ownerEmail})` : ""}
-                </span>
-                <span className="inline-flex items-center gap-1 text-destructive">
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Deleted by {d.deletedByName || d.deletedByEmail || "Unknown"}
-                  {d.deletedByEmail && d.deletedByName ? ` (${d.deletedByEmail})` : ""}
-                </span>
-                {d.deletedAt?.toDate && (
-                  <span>on {d.deletedAt.toDate().toLocaleString()}</span>
-                )}
-                <span>{d.memberCount} member{d.memberCount === 1 ? "" : "s"}</span>
+            <CardContent className={cn(viewMode === "compact" ? "py-3 px-4" : "py-4 px-5")}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <Trash className="h-4 w-4 text-destructive" />
+                    <p className="font-semibold truncate">{d.name || "(untitled)"}</p>
+                  </div>
+                  {d.description && viewMode !== "compact" && (
+                    <p className="text-sm text-muted-foreground mt-0.5">{d.description}</p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
+                    <span className="inline-flex items-center gap-1">
+                      <UserIcon className="h-3.5 w-3.5" />
+                      Owner: {d.ownerName || "Unknown"}
+                      {d.ownerEmail ? ` (${d.ownerEmail})` : ""}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-destructive">
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Deleted by {d.deletedByName || d.deletedByEmail || "Unknown"}
+                      {d.deletedByEmail && d.deletedByName ? ` (${d.deletedByEmail})` : ""}
+                    </span>
+                    {d.deletedAt?.toDate && (
+                      <span>on {d.deletedAt.toDate().toLocaleString()}</span>
+                    )}
+                    <span>{d.memberCount} member{d.memberCount === 1 ? "" : "s"}</span>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0"
+                  disabled={!d.snapshot}
+                  title={d.snapshot ? "Restore this project" : "No snapshot available (legacy deletion)"}
+                  onClick={() => handleRestore(d)}
+                >
+                  <RotateCcw className="h-3.5 w-3.5 mr-1" /> Restore
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -243,6 +300,41 @@ export default function CollabPage() {
           <p className="text-sm text-muted-foreground">Real-time collaborative projects you own or were invited to.</p>
         </div>
         <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1" /> New Project</Button>
+      </div>
+
+      <div className="flex items-center gap-2 mt-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search projects, owners…"
+            className="pl-8"
+          />
+        </div>
+        <div className="inline-flex rounded-md border bg-background overflow-hidden">
+          {([
+            { mode: "list", icon: List, label: "List" },
+            { mode: "grid", icon: LayoutGrid, label: "Grid" },
+            { mode: "single", icon: Square, label: "Single" },
+            { mode: "compact", icon: Grid3x3, label: "Compact" },
+          ] as const).map(({ mode, icon: Icon, label }) => (
+            <button
+              key={mode}
+              type="button"
+              title={label}
+              onClick={() => setViewMode(mode)}
+              className={cn(
+                "p-2 transition-colors",
+                viewMode === mode
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-muted text-muted-foreground"
+              )}
+            >
+              <Icon className="h-4 w-4" />
+            </button>
+          ))}
+        </div>
       </div>
 
       {isAdmin ? (

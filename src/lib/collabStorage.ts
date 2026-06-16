@@ -110,6 +110,33 @@ export interface DeletedProjectDoc {
   deletedByName: string;
   deletedAt: Timestamp | null;
   memberCount: number;
+  snapshot?: {
+    project: Omit<CollabProjectDoc, "id">;
+    members: Array<CollabMemberDoc & { uid: string }>;
+  };
+}
+
+export async function restoreDeletedProject(deletedDocId: string): Promise<string> {
+  const ref = doc(db, "deletedProjects", deletedDocId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error("Deleted record not found");
+  const d = snap.data() as Omit<DeletedProjectDoc, "id">;
+  if (!d.snapshot) throw new Error("No snapshot stored for this project — cannot restore");
+  const pid = d.projectId;
+  // Restore project doc
+  await setDoc(projectRef(pid), {
+    ...d.snapshot.project,
+    updatedAt: serverTimestamp(),
+  });
+  // Restore members
+  for (const m of d.snapshot.members) {
+    const { uid, ...rest } = m;
+    await setDoc(memberRef(pid, uid), rest);
+  }
+  // Remove the deletion record
+  await deleteDoc(ref);
+  await logActivity(pid, "restored the project");
+  return pid;
 }
 
 export function subscribeDeletedProjects(cb: (list: DeletedProjectDoc[]) => void) {
@@ -320,12 +347,18 @@ export async function leaveProject(pid: string) {
 }
 
 export async function deleteCollabProject(pid: string) {
-  // Record a deletion entry first so admins can see deletion history
+  // Record a deletion entry first so admins can see deletion history (and restore)
   try {
     const u = auth.currentUser;
     const projSnap = await getDoc(projectRef(pid));
     if (projSnap.exists()) {
       const p = projSnap.data() as Omit<CollabProjectDoc, "id">;
+      // Snapshot members for restore
+      const memberSnap = await getDocs(membersCol(pid));
+      const members: Array<CollabMemberDoc & { uid: string }> = [];
+      memberSnap.forEach((m) =>
+        members.push({ uid: m.id, ...(m.data() as CollabMemberDoc) })
+      );
       await addDoc(deletedProjectsCol(), {
         projectId: pid,
         name: p.name || "",
@@ -338,6 +371,7 @@ export async function deleteCollabProject(pid: string) {
         deletedByName: u?.displayName || u?.email || "Someone",
         deletedAt: serverTimestamp(),
         memberCount: p.memberIds?.length ?? 0,
+        snapshot: { project: p, members },
       });
     }
   } catch (e) {
