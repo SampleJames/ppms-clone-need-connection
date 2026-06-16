@@ -271,7 +271,7 @@ export default function CollabPage() {
   );
 
   const renderAllProjects = () => (
-    allLoading ? renderLoader("Loading all users' projects…") :
+    allLoading ? renderLoader("Loading all users' projects…", readCount("all")) :
     filteredAll.length === 0 ? (
       <Card className="mt-6">
         <CardContent className="py-12 text-center text-muted-foreground">
