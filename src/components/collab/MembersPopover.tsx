@@ -85,7 +85,7 @@ export default function MembersPopover({ pid, ownerId }: Props) {
                   </div>
                   <p className="text-xs text-muted-foreground truncate">{m.email}</p>
                 </div>
-                {isOwner && !memberIsOwner ? (
+                {canManage && !memberIsOwner ? (
                   <>
                     <Select
                       value={m.role}
