@@ -453,6 +453,7 @@ import InviteDialog from "@/components/collab/InviteDialog";
 import ActivityDrawer from "@/components/collab/ActivityDrawer";
 import PresenceAvatars from "@/components/collab/PresenceAvatars";
 import JoinRequestsButton from "@/components/collab/JoinRequestsButton";
+import ChatDrawer from "@/components/collab/ChatDrawer";
 import SignInScreen from "@/components/auth/SignInScreen";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Lock, Shield, Trash2 } from "lucide-react";
@@ -748,6 +749,7 @@ export default function CollabProjectView() {
               <Trash2 className="h-4 w-4 mr-1" /> Delete
             </Button>
           )}
+          <ChatDrawer pid={id} />
           <ActivityDrawer pid={id} />
           <Button variant="outline" size="sm" onClick={() => navigate(`/print?project=${id}&collab=1`)}>
             <Printer className="h-4 w-4 mr-1" /> Print

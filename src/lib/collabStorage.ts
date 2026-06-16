@@ -87,7 +87,44 @@ export const presenceCol = (pid: string) => collection(db, "collabProjects", pid
 export const presenceRef = (pid: string, uid: string) =>
   doc(db, "collabProjects", pid, "presence", uid);
 export const activityCol = (pid: string) => collection(db, "collabProjects", pid, "activity");
+export const chatCol = (pid: string) => collection(db, "collabProjects", pid, "chat");
 export const deletedProjectsCol = () => collection(db, "deletedProjects");
+
+export interface ChatMessageDoc {
+  uid: string;
+  displayName: string;
+  email: string;
+  photoURL: string;
+  text: string;
+  at: Timestamp | null;
+}
+
+export async function sendChatMessage(pid: string, text: string) {
+  const u = auth.currentUser;
+  if (!u) throw new Error("Not signed in");
+  const trimmed = text.trim();
+  if (!trimmed) return;
+  await addDoc(chatCol(pid), {
+    uid: u.uid,
+    displayName: u.displayName || u.email || "Someone",
+    email: u.email || "",
+    photoURL: u.photoURL || "",
+    text: trimmed.slice(0, 2000),
+    at: serverTimestamp(),
+  });
+}
+
+export function subscribeChat(
+  pid: string,
+  cb: (list: (ChatMessageDoc & { id: string })[]) => void,
+) {
+  return onSnapshot(chatCol(pid), (snap) => {
+    const out: (ChatMessageDoc & { id: string })[] = [];
+    snap.forEach((d) => out.push({ id: d.id, ...(d.data() as ChatMessageDoc) }));
+    out.sort((a, b) => (a.at?.toMillis?.() ?? 0) - (b.at?.toMillis?.() ?? 0));
+    cb(out.slice(-200));
+  });
+}
 
 // ===================== Admin =====================
 export const ADMIN_EMAILS = ["mjfernandez@tsu.edu.ph"];
