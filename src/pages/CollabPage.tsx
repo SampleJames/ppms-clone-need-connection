@@ -202,7 +202,7 @@ export default function CollabPage() {
   );
 
   const renderMyProjects = () => (
-    mineLoading ? renderLoader("Loading your shared projects…") :
+    mineLoading ? renderLoader("Loading your shared projects…", readCount("mine")) :
     filteredMy.length === 0 ? (
       <Card className="mt-6">
         <CardContent className="py-12 text-center text-muted-foreground">
