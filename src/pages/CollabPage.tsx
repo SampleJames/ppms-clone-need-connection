@@ -302,6 +302,41 @@ export default function CollabPage() {
         <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-1" /> New Project</Button>
       </div>
 
+      <div className="flex items-center gap-2 mt-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search projects, owners…"
+            className="pl-8"
+          />
+        </div>
+        <div className="inline-flex rounded-md border bg-background overflow-hidden">
+          {([
+            { mode: "list", icon: List, label: "List" },
+            { mode: "grid", icon: LayoutGrid, label: "Grid" },
+            { mode: "single", icon: Square, label: "Single" },
+            { mode: "compact", icon: Grid3x3, label: "Compact" },
+          ] as const).map(({ mode, icon: Icon, label }) => (
+            <button
+              key={mode}
+              type="button"
+              title={label}
+              onClick={() => setViewMode(mode)}
+              className={cn(
+                "p-2 transition-colors",
+                viewMode === mode
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-muted text-muted-foreground"
+              )}
+            >
+              <Icon className="h-4 w-4" />
+            </button>
+          ))}
+        </div>
+      </div>
+
       {isAdmin ? (
         <Tabs defaultValue="mine" className="mt-4">
           <TabsList>
