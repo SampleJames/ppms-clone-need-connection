@@ -35,6 +35,7 @@ export default function CollabPage() {
   const [restoringIds, setRestoringIds] = useState<Set<string>>(new Set());
   const [ownerInfoMap, setOwnerInfoMap] = useState<Record<string, { email: string; name: string }>>({});
   const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [editProject, setEditProject] = useState<CollabProjectDoc | null>(null);
@@ -131,13 +132,16 @@ export default function CollabPage() {
   if (!user) return <SignInScreen />;
 
   const handleCreate = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || creating) return;
+    setCreating(true);
     try {
       const id = await createCollabProject(name.trim(), desc.trim());
       setName(""); setDesc(""); setCreateOpen(false);
       navigate(`/collab/project/${id}`);
     } catch (e) {
       toast({ title: "Create failed", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -454,8 +458,10 @@ export default function CollabPage() {
             <Input placeholder="Description (optional)" value={desc} onChange={(e) => setDesc(e.target.value)} />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreate} disabled={!name.trim()}>Create</Button>
+            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>Cancel</Button>
+            <Button onClick={handleCreate} disabled={!name.trim() || creating}>
+              {creating ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Creating…</> : "Create"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
