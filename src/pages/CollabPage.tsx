@@ -215,8 +215,9 @@ export default function CollabPage() {
       <div className={gridClass}>
         {filteredMy.map((p) => {
           const isOwner = p.ownerId === user.uid;
+          const isDeleting = deletingIds.has(p.id);
           return (
-            <Card key={p.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate(`/collab/project/${p.id}`)}>
+            <Card key={p.id} className={cn("hover:shadow-md transition-shadow cursor-pointer relative", isDeleting && "opacity-60 pointer-events-none")} onClick={() => !isDeleting && navigate(`/collab/project/${p.id}`)}>
               <CardContent className={cn("flex items-center justify-between", viewMode === "compact" ? "py-3 px-4" : "py-4 px-5")}>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -230,11 +231,12 @@ export default function CollabPage() {
                     {p.updatedAt?.toDate ? ` · ${p.updatedAt.toDate().toLocaleDateString()}` : ""}
                   </p>
                 </div>
-                <div className="flex gap-1 ml-4 shrink-0" onClick={(e) => e.stopPropagation()}>
+                <div className="flex gap-1 ml-4 shrink-0 items-center" onClick={(e) => e.stopPropagation()}>
                   {isOwner && (
                     <>
                       <Button
                         variant="ghost" size="icon"
+                        disabled={isDeleting}
                         onClick={() => {
                           setEditProject(p);
                           setEditName(p.name);
@@ -245,20 +247,22 @@ export default function CollabPage() {
                       </Button>
                       <Button
                         variant="ghost" size="icon"
-                        onClick={() => {
-                          if (confirm(`Delete "${p.name}"? This cannot be undone.`)) {
-                            deleteCollabProject(p.id).catch((e) =>
-                              toast({ title: "Delete failed", description: (e as Error).message, variant: "destructive" })
-                            );
-                          }
-                        }}
+                        disabled={isDeleting}
+                        onClick={() => handleDelete(p)}
                       >
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                        {isDeleting
+                          ? <Loader2 className="h-4 w-4 animate-spin text-destructive" />
+                          : <Trash2 className="h-4 w-4 text-destructive" />}
                       </Button>
                     </>
                   )}
                 </div>
               </CardContent>
+              {isDeleting && (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-[1px] text-xs text-muted-foreground gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Deleting…
+                </div>
+              )}
             </Card>
           );
         })}
