@@ -719,7 +719,7 @@ export default function CollabProjectView() {
         <PresenceAvatars pid={id} />
         <div className="flex gap-2 flex-wrap">
           <MembersPopover pid={id} ownerId={doc.ownerId} />
-          {myRole === "owner" && (
+          {(myRole === "owner" || isAdmin) && (
             <>
               <JoinRequestsButton pid={id} />
               <Button size="sm" onClick={() => setInviteOpen(true)}>
