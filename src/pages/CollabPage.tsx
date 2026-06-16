@@ -35,6 +35,7 @@ export default function CollabPage() {
   const [restoringIds, setRestoringIds] = useState<Set<string>>(new Set());
   const [ownerInfoMap, setOwnerInfoMap] = useState<Record<string, { email: string; name: string }>>({});
   const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [editProject, setEditProject] = useState<CollabProjectDoc | null>(null);
