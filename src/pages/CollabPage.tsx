@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Users, FolderOpen, Trash2, Crown, Pencil, Shield, Mail, Trash, User as UserIcon, Search, List, LayoutGrid, Square, Grid3x3, RotateCcw } from "lucide-react";
+import { Plus, Users, FolderOpen, Trash2, Crown, Pencil, Shield, Mail, Trash, User as UserIcon, Search, List, LayoutGrid, Square, Grid3x3, RotateCcw, Loader2 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
@@ -31,6 +31,8 @@ export default function CollabPage() {
   const [mineLoading, setMineLoading] = useState(true);
   const [allLoading, setAllLoading] = useState(true);
   const [deletedLoading, setDeletedLoading] = useState(true);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [restoringIds, setRestoringIds] = useState<Set<string>>(new Set());
   const [ownerInfoMap, setOwnerInfoMap] = useState<Record<string, { email: string; name: string }>>({});
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
@@ -40,6 +42,17 @@ export default function CollabPage() {
   const [editDesc, setEditDesc] = useState("");
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
+
+  // Persisted last-known counts so the loader shows the right number of skeletons
+  const countKey = (kind: string) => `collab:lastCount:${kind}:${user?.uid || "anon"}`;
+  const readCount = (kind: string): number => {
+    if (typeof window === "undefined") return 1;
+    const v = parseInt(window.localStorage.getItem(countKey(kind)) || "", 10);
+    return Number.isFinite(v) && v > 0 ? Math.min(v, 12) : 1;
+  };
+  const writeCount = (kind: string, n: number) => {
+    try { window.localStorage.setItem(countKey(kind), String(Math.max(0, n))); } catch {}
+  };
 
   const isAdmin = useMemo(() => isAdminEmail(user?.email), [user]);
 
@@ -64,8 +77,10 @@ export default function CollabPage() {
     setMineLoading(true);
     return subscribeMyProjects(user.uid, (p) => {
       setProjects(p);
+      writeCount("mine", p.length);
       setMineLoading(false);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   useEffect(() => {
@@ -73,8 +88,10 @@ export default function CollabPage() {
     setAllLoading(true);
     return subscribeAllProjects((p) => {
       setAllProjects(p);
+      writeCount("all", p.length);
       setAllLoading(false);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
 
   useEffect(() => {
@@ -82,8 +99,10 @@ export default function CollabPage() {
     setDeletedLoading(true);
     return subscribeDeletedProjects((p) => {
       setDeletedProjects(p);
+      writeCount("deleted", p.length);
       setDeletedLoading(false);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
 
   // Backfill owner email/name for legacy projects missing ownerEmail
@@ -135,18 +154,38 @@ export default function CollabPage() {
   );
 
   const handleRestore = async (d: DeletedProjectDoc) => {
+    setRestoringIds((s) => new Set(s).add(d.id));
     try {
       const pid = await restoreDeletedProject(d.id);
       toast({ title: "Project restored", description: `"${d.name}" has been restored.` });
       navigate(`/collab/project/${pid}`);
     } catch (e) {
       toast({ title: "Restore failed", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setRestoringIds((s) => {
+        const n = new Set(s); n.delete(d.id); return n;
+      });
     }
   };
 
-  const renderLoader = (label: string) => (
+  const handleDelete = async (p: CollabProjectDoc) => {
+    if (!confirm(`Delete "${p.name}"? This cannot be undone.`)) return;
+    setDeletingIds((s) => new Set(s).add(p.id));
+    try {
+      await deleteCollabProject(p.id);
+      toast({ title: "Project deleted", description: `"${p.name}" was deleted.` });
+    } catch (e) {
+      toast({ title: "Delete failed", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setDeletingIds((s) => {
+        const n = new Set(s); n.delete(p.id); return n;
+      });
+    }
+  };
+
+  const renderLoader = (label: string, count: number) => (
     <div className={gridClass}>
-      {Array.from({ length: 4 }).map((_, i) => (
+      {Array.from({ length: Math.max(1, count) }).map((_, i) => (
         <Card key={i} className="overflow-hidden">
           <CardContent className={cn(viewMode === "compact" ? "py-3 px-4" : "py-4 px-5")}>
             <div className="flex items-center gap-2">
@@ -163,7 +202,7 @@ export default function CollabPage() {
   );
 
   const renderMyProjects = () => (
-    mineLoading ? renderLoader("Loading your shared projects…") :
+    mineLoading ? renderLoader("Loading your shared projects…", readCount("mine")) :
     filteredMy.length === 0 ? (
       <Card className="mt-6">
         <CardContent className="py-12 text-center text-muted-foreground">
@@ -176,8 +215,9 @@ export default function CollabPage() {
       <div className={gridClass}>
         {filteredMy.map((p) => {
           const isOwner = p.ownerId === user.uid;
+          const isDeleting = deletingIds.has(p.id);
           return (
-            <Card key={p.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate(`/collab/project/${p.id}`)}>
+            <Card key={p.id} className={cn("hover:shadow-md transition-shadow cursor-pointer relative", isDeleting && "opacity-60 pointer-events-none")} onClick={() => !isDeleting && navigate(`/collab/project/${p.id}`)}>
               <CardContent className={cn("flex items-center justify-between", viewMode === "compact" ? "py-3 px-4" : "py-4 px-5")}>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -191,11 +231,12 @@ export default function CollabPage() {
                     {p.updatedAt?.toDate ? ` · ${p.updatedAt.toDate().toLocaleDateString()}` : ""}
                   </p>
                 </div>
-                <div className="flex gap-1 ml-4 shrink-0" onClick={(e) => e.stopPropagation()}>
+                <div className="flex gap-1 ml-4 shrink-0 items-center" onClick={(e) => e.stopPropagation()}>
                   {isOwner && (
                     <>
                       <Button
                         variant="ghost" size="icon"
+                        disabled={isDeleting}
                         onClick={() => {
                           setEditProject(p);
                           setEditName(p.name);
@@ -206,20 +247,22 @@ export default function CollabPage() {
                       </Button>
                       <Button
                         variant="ghost" size="icon"
-                        onClick={() => {
-                          if (confirm(`Delete "${p.name}"? This cannot be undone.`)) {
-                            deleteCollabProject(p.id).catch((e) =>
-                              toast({ title: "Delete failed", description: (e as Error).message, variant: "destructive" })
-                            );
-                          }
-                        }}
+                        disabled={isDeleting}
+                        onClick={() => handleDelete(p)}
                       >
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                        {isDeleting
+                          ? <Loader2 className="h-4 w-4 animate-spin text-destructive" />
+                          : <Trash2 className="h-4 w-4 text-destructive" />}
                       </Button>
                     </>
                   )}
                 </div>
               </CardContent>
+              {isDeleting && (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/40 backdrop-blur-[1px] text-xs text-muted-foreground gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Deleting…
+                </div>
+              )}
             </Card>
           );
         })}
@@ -228,7 +271,7 @@ export default function CollabPage() {
   );
 
   const renderAllProjects = () => (
-    allLoading ? renderLoader("Loading all users' projects…") :
+    allLoading ? renderLoader("Loading all users' projects…", readCount("all")) :
     filteredAll.length === 0 ? (
       <Card className="mt-6">
         <CardContent className="py-12 text-center text-muted-foreground">
@@ -270,7 +313,7 @@ export default function CollabPage() {
   );
 
   const renderDeletedProjects = () => (
-    deletedLoading ? renderLoader("Loading deleted projects…") :
+    deletedLoading ? renderLoader("Loading deleted projects…", readCount("deleted")) :
     filteredDeleted.length === 0 ? (
       <Card className="mt-6">
         <CardContent className="py-12 text-center text-muted-foreground">
@@ -281,8 +324,10 @@ export default function CollabPage() {
       </Card>
     ) : (
       <div className={gridClass}>
-        {filteredDeleted.map((d) => (
-          <Card key={d.id}>
+        {filteredDeleted.map((d) => {
+          const isRestoring = restoringIds.has(d.id);
+          return (
+          <Card key={d.id} className={cn("relative", isRestoring && "opacity-60")}>
             <CardContent className={cn(viewMode === "compact" ? "py-3 px-4" : "py-4 px-5")}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
@@ -314,16 +359,19 @@ export default function CollabPage() {
                   size="sm"
                   variant="outline"
                   className="shrink-0"
-                  disabled={!d.snapshot}
+                  disabled={!d.snapshot || isRestoring}
                   title={d.snapshot ? "Restore this project" : "No snapshot available (legacy deletion)"}
                   onClick={() => handleRestore(d)}
                 >
-                  <RotateCcw className="h-3.5 w-3.5 mr-1" /> Restore
+                  {isRestoring
+                    ? <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Restoring…</>
+                    : <><RotateCcw className="h-3.5 w-3.5 mr-1" /> Restore</>}
                 </Button>
               </div>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
       </div>
     )
   );
