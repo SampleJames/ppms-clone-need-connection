@@ -43,8 +43,14 @@ export default function Dashboard() {
   const reload = () => setProjects(getProjects());
   useEffect(reload, []);
 
+  const matchesSearch = (s: string) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return s.toLowerCase().includes(q);
+  };
+
   const filtered = projects.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase())
+    matchesSearch(`${p.name} ${p.description ?? ""}`)
   );
 
   const handleCreate = () => {
