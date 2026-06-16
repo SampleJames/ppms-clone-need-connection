@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { MessageCircle, Send } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { ChatMessageDoc, sendChatMessage, subscribeChat } from "@/lib/collabStorage";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -100,12 +101,24 @@ export default function ChatDrawer({ pid }: Props) {
               <div key={m.id} className={cn("flex gap-2", mine ? "flex-row-reverse" : "flex-row")}>
                 <div className="w-8 shrink-0">
                   {showHeader && (
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={m.photoURL} />
-                      <AvatarFallback className="text-[10px]">
-                        {(m.displayName || "?").charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
+                    <TooltipProvider delayDuration={150}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Avatar className="h-8 w-8 cursor-pointer">
+                            <AvatarImage src={m.photoURL} />
+                            <AvatarFallback className="text-[10px]">
+                              {(m.displayName || "?").charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                        </TooltipTrigger>
+                        <TooltipContent side={mine ? "left" : "right"}>
+                          <div className="text-xs">
+                            <div className="font-medium">{m.displayName || "Unknown"}</div>
+                            <div className="text-muted-foreground">{m.email || "No email"}</div>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   )}
                 </div>
                 <div className={cn("flex flex-col max-w-[75%]", mine ? "items-end" : "items-start")}>
