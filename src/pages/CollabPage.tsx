@@ -154,18 +154,38 @@ export default function CollabPage() {
   );
 
   const handleRestore = async (d: DeletedProjectDoc) => {
+    setRestoringIds((s) => new Set(s).add(d.id));
     try {
       const pid = await restoreDeletedProject(d.id);
       toast({ title: "Project restored", description: `"${d.name}" has been restored.` });
       navigate(`/collab/project/${pid}`);
     } catch (e) {
       toast({ title: "Restore failed", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setRestoringIds((s) => {
+        const n = new Set(s); n.delete(d.id); return n;
+      });
     }
   };
 
-  const renderLoader = (label: string) => (
+  const handleDelete = async (p: CollabProjectDoc) => {
+    if (!confirm(`Delete "${p.name}"? This cannot be undone.`)) return;
+    setDeletingIds((s) => new Set(s).add(p.id));
+    try {
+      await deleteCollabProject(p.id);
+      toast({ title: "Project deleted", description: `"${p.name}" was deleted.` });
+    } catch (e) {
+      toast({ title: "Delete failed", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setDeletingIds((s) => {
+        const n = new Set(s); n.delete(p.id); return n;
+      });
+    }
+  };
+
+  const renderLoader = (label: string, count: number) => (
     <div className={gridClass}>
-      {Array.from({ length: 4 }).map((_, i) => (
+      {Array.from({ length: Math.max(1, count) }).map((_, i) => (
         <Card key={i} className="overflow-hidden">
           <CardContent className={cn(viewMode === "compact" ? "py-3 px-4" : "py-4 px-5")}>
             <div className="flex items-center gap-2">
