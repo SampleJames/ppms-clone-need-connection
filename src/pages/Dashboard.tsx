@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, Copy, Trash2, Pencil, FolderOpen } from "lucide-react";
+import { Plus, Search, Copy, Trash2, Pencil, FolderOpen, List, LayoutGrid, Square, Grid3x3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +14,9 @@ import {
 import { Project } from "@/types";
 import { getProjects, createProject, deleteProject, duplicateProject, saveProject } from "@/lib/storage";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+
+type ViewMode = "list" | "grid" | "single" | "compact";
 
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
