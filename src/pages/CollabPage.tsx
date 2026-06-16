@@ -31,6 +31,8 @@ export default function CollabPage() {
   const [mineLoading, setMineLoading] = useState(true);
   const [allLoading, setAllLoading] = useState(true);
   const [deletedLoading, setDeletedLoading] = useState(true);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [restoringIds, setRestoringIds] = useState<Set<string>>(new Set());
   const [ownerInfoMap, setOwnerInfoMap] = useState<Record<string, { email: string; name: string }>>({});
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
@@ -40,6 +42,17 @@ export default function CollabPage() {
   const [editDesc, setEditDesc] = useState("");
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
+
+  // Persisted last-known counts so the loader shows the right number of skeletons
+  const countKey = (kind: string) => `collab:lastCount:${kind}:${user?.uid || "anon"}`;
+  const readCount = (kind: string): number => {
+    if (typeof window === "undefined") return 1;
+    const v = parseInt(window.localStorage.getItem(countKey(kind)) || "", 10);
+    return Number.isFinite(v) && v > 0 ? Math.min(v, 12) : 1;
+  };
+  const writeCount = (kind: string, n: number) => {
+    try { window.localStorage.setItem(countKey(kind), String(Math.max(0, n))); } catch {}
+  };
 
   const isAdmin = useMemo(() => isAdminEmail(user?.email), [user]);
 
