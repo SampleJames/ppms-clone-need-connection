@@ -689,13 +689,13 @@ export default function CollabProjectView() {
         }}
       />
 
-      <div className="flex items-center gap-3 mb-2">
+      <div className="flex flex-wrap items-center gap-3 mb-2">
         <Button variant="ghost" size="icon" onClick={() => navigate(user ? "/collab" : "/")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold truncate">{project.name}</h1>
+        <div className="min-w-[240px] flex-1 basis-[260px]">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl font-bold truncate max-w-full">{project.name}</h1>
             {!canEdit && (
               <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground border">
                 <Eye className="h-3 w-3 mr-1" /> Read-only
@@ -711,14 +711,15 @@ export default function CollabProjectView() {
             <p className="text-sm text-muted-foreground truncate">{project.description}</p>
           )}
           {doc.lastEditedByName && (
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground truncate">
               Last edited by {doc.lastEditedByName}
               {doc.updatedAt?.toDate ? ` · ${doc.updatedAt.toDate().toLocaleString()}` : ""}
             </p>
           )}
         </div>
         <PresenceAvatars pid={id} />
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap ml-auto">
+
           <MembersPopover pid={id} ownerId={doc.ownerId} />
           {(myRole === "owner" || isAdmin) && (
             <>
