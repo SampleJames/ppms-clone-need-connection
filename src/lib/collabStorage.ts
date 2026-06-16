@@ -333,7 +333,7 @@ export async function transferOwnership(pid: string, newOwnerUid: string) {
   await updateDoc(memberRef(pid, newOwnerUid), { role: "owner" });
   const me = auth.currentUser;
   if (me && me.uid !== newOwnerUid) {
-    await updateDoc(memberRef(pid, me.uid), { role: "editor" });
+    await updateDoc(memberRef(pid, me.uid), { role: "editor" }).catch(() => {});
   }
   await logActivity(pid, "transferred ownership");
 }
