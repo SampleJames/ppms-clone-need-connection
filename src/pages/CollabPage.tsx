@@ -35,8 +35,26 @@ export default function CollabPage() {
   const [editProject, setEditProject] = useState<CollabProjectDoc | null>(null);
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
+  const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
   const isAdmin = useMemo(() => isAdminEmail(user?.email), [user]);
+
+  const gridClass = useMemo(() => {
+    switch (viewMode) {
+      case "list": return "grid grid-cols-1 gap-2 mt-4";
+      case "single": return "grid grid-cols-1 gap-4 mt-4";
+      case "compact": return "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mt-4";
+      case "grid":
+      default: return "grid grid-cols-1 md:grid-cols-2 gap-3 mt-4";
+    }
+  }, [viewMode]);
+
+  const matchesSearch = (s: string) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return s.toLowerCase().includes(q);
+  };
 
   useEffect(() => {
     if (!user) return;
