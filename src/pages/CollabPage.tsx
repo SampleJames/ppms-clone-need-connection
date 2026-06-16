@@ -324,8 +324,10 @@ export default function CollabPage() {
       </Card>
     ) : (
       <div className={gridClass}>
-        {filteredDeleted.map((d) => (
-          <Card key={d.id}>
+        {filteredDeleted.map((d) => {
+          const isRestoring = restoringIds.has(d.id);
+          return (
+          <Card key={d.id} className={cn("relative", isRestoring && "opacity-60")}>
             <CardContent className={cn(viewMode === "compact" ? "py-3 px-4" : "py-4 px-5")}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
@@ -357,16 +359,19 @@ export default function CollabPage() {
                   size="sm"
                   variant="outline"
                   className="shrink-0"
-                  disabled={!d.snapshot}
+                  disabled={!d.snapshot || isRestoring}
                   title={d.snapshot ? "Restore this project" : "No snapshot available (legacy deletion)"}
                   onClick={() => handleRestore(d)}
                 >
-                  <RotateCcw className="h-3.5 w-3.5 mr-1" /> Restore
+                  {isRestoring
+                    ? <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Restoring…</>
+                    : <><RotateCcw className="h-3.5 w-3.5 mr-1" /> Restore</>}
                 </Button>
               </div>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
       </div>
     )
   );
