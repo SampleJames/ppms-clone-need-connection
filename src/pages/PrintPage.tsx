@@ -46,7 +46,7 @@ import { PrintSettings, DEFAULT_PRINT_SETTINGS, PrintDocType, PrintProfiles } fr
 
 // Firebase & Collab Imports
 import { useAuth } from "@/contexts/AuthContext";
-import { subscribeMyProjects, subscribeProject, CollabProjectDoc, docToProject } from "@/lib/collabStorage";
+import { subscribeMyProjects, subscribeAllProjects, subscribeProject, CollabProjectDoc, docToProject, isAdminEmail } from "@/lib/collabStorage";
 import { collection, doc, setDoc, deleteDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -176,11 +176,13 @@ export default function PrintPage() {
   const [selectedProjectId, setSelectedProjectId] = useState(preselectedProjectId);
   const [activeTab, setActiveTab] = useState<"abc" | "dupa" | "boq" | "scurve" | "header">("abc");
 
-  // Fetch Collab Project List
+  // Fetch Collab Project List (admins see all projects)
+  const isAdmin = isAdminEmail(user?.email);
   useEffect(() => {
     if (!user) return;
+    if (isAdmin) return subscribeAllProjects(setCollabDocs);
     return subscribeMyProjects(user.uid, setCollabDocs);
-  }, [user]);
+  }, [user, isAdmin]);
 
   // Determine if it's local or cloud, and fetch cloud if needed
   const localProjectMatch = localProjects.find((p) => p.id === selectedProjectId);
