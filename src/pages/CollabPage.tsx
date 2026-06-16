@@ -28,6 +28,9 @@ export default function CollabPage() {
   const [projects, setProjects] = useState<CollabProjectDoc[]>([]);
   const [allProjects, setAllProjects] = useState<CollabProjectDoc[]>([]);
   const [deletedProjects, setDeletedProjects] = useState<DeletedProjectDoc[]>([]);
+  const [mineLoading, setMineLoading] = useState(true);
+  const [allLoading, setAllLoading] = useState(true);
+  const [deletedLoading, setDeletedLoading] = useState(true);
   const [ownerInfoMap, setOwnerInfoMap] = useState<Record<string, { email: string; name: string }>>({});
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
@@ -58,17 +61,29 @@ export default function CollabPage() {
 
   useEffect(() => {
     if (!user) return;
-    return subscribeMyProjects(user.uid, setProjects);
+    setMineLoading(true);
+    return subscribeMyProjects(user.uid, (p) => {
+      setProjects(p);
+      setMineLoading(false);
+    });
   }, [user]);
 
   useEffect(() => {
     if (!isAdmin) return;
-    return subscribeAllProjects(setAllProjects);
+    setAllLoading(true);
+    return subscribeAllProjects((p) => {
+      setAllProjects(p);
+      setAllLoading(false);
+    });
   }, [isAdmin]);
 
   useEffect(() => {
     if (!isAdmin) return;
-    return subscribeDeletedProjects(setDeletedProjects);
+    setDeletedLoading(true);
+    return subscribeDeletedProjects((p) => {
+      setDeletedProjects(p);
+      setDeletedLoading(false);
+    });
   }, [isAdmin]);
 
   // Backfill owner email/name for legacy projects missing ownerEmail
@@ -129,7 +144,26 @@ export default function CollabPage() {
     }
   };
 
+  const renderLoader = (label: string) => (
+    <div className={gridClass}>
+      {Array.from({ length: 4 }).map((_, i) => (
+        <Card key={i} className="overflow-hidden">
+          <CardContent className={cn(viewMode === "compact" ? "py-3 px-4" : "py-4 px-5")}>
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+              <div className="h-4 w-40 rounded bg-muted animate-pulse" />
+            </div>
+            <div className="h-3 w-60 rounded bg-muted animate-pulse mt-3" />
+            <div className="h-3 w-32 rounded bg-muted animate-pulse mt-2" />
+          </CardContent>
+        </Card>
+      ))}
+      <p className="col-span-full text-center text-xs text-muted-foreground mt-1">{label}</p>
+    </div>
+  );
+
   const renderMyProjects = () => (
+    mineLoading ? renderLoader("Loading your shared projects…") :
     filteredMy.length === 0 ? (
       <Card className="mt-6">
         <CardContent className="py-12 text-center text-muted-foreground">
@@ -194,6 +228,7 @@ export default function CollabPage() {
   );
 
   const renderAllProjects = () => (
+    allLoading ? renderLoader("Loading all users' projects…") :
     filteredAll.length === 0 ? (
       <Card className="mt-6">
         <CardContent className="py-12 text-center text-muted-foreground">
@@ -235,6 +270,7 @@ export default function CollabPage() {
   );
 
   const renderDeletedProjects = () => (
+    deletedLoading ? renderLoader("Loading deleted projects…") :
     filteredDeleted.length === 0 ? (
       <Card className="mt-6">
         <CardContent className="py-12 text-center text-muted-foreground">
