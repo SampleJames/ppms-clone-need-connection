@@ -1070,6 +1070,7 @@ export default function PrintPage() {
                     {collabDocs.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
                         ☁️ {p.name}
+                        {p.ownerEmail ? ` (Owner: ${p.ownerEmail})` : ""}
                       </SelectItem>
                     ))}
                   </SelectGroup>
