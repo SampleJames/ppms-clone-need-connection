@@ -46,7 +46,7 @@ import { PrintSettings, DEFAULT_PRINT_SETTINGS, PrintDocType, PrintProfiles } fr
 
 // Firebase & Collab Imports
 import { useAuth } from "@/contexts/AuthContext";
-import { subscribeMyProjects, subscribeProject, CollabProjectDoc, docToProject } from "@/lib/collabStorage";
+import { subscribeMyProjects, subscribeAllProjects, subscribeProject, CollabProjectDoc, docToProject, isAdminEmail } from "@/lib/collabStorage";
 import { collection, doc, setDoc, deleteDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
