@@ -131,13 +131,16 @@ export default function CollabPage() {
   if (!user) return <SignInScreen />;
 
   const handleCreate = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || creating) return;
+    setCreating(true);
     try {
       const id = await createCollabProject(name.trim(), desc.trim());
       setName(""); setDesc(""); setCreateOpen(false);
       navigate(`/collab/project/${id}`);
     } catch (e) {
       toast({ title: "Create failed", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setCreating(false);
     }
   };
 
