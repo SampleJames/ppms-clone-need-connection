@@ -104,6 +104,9 @@ export default function CollabPage() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
+
+  // Backfill owner email/name for legacy projects missing ownerEmail
+  useEffect(() => {
     if (!isAdmin) return;
     const missing = allProjects.filter(
       (p) => !p.ownerEmail && p.ownerId && !ownerInfoMap[p.id]
