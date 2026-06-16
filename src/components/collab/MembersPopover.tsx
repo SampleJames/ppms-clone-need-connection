@@ -10,6 +10,7 @@ import {
   subscribePresence,
   transferOwnership,
   leaveProject,
+  isAdminEmail,
 } from "@/lib/collabStorage";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,8 @@ export default function MembersPopover({ pid, ownerId }: Props) {
   useEffect(() => subscribePresence(pid, setPresence), [pid]);
 
   const isOwner = user?.uid === ownerId;
+  const isAdmin = isAdminEmail(user?.email);
+  const canManage = isOwner || isAdmin;
   const onlineUids = new Set(
     presence
       .filter((p) => {
@@ -82,7 +85,7 @@ export default function MembersPopover({ pid, ownerId }: Props) {
                   </div>
                   <p className="text-xs text-muted-foreground truncate">{m.email}</p>
                 </div>
-                {isOwner && !memberIsOwner ? (
+                {canManage && !memberIsOwner ? (
                   <>
                     <Select
                       value={m.role}
@@ -127,6 +130,10 @@ export default function MembersPopover({ pid, ownerId }: Props) {
             <p className="text-[11px] text-muted-foreground px-1">
               You are the owner. Use the role dropdown to change permissions or transfer via menu.
             </p>
+          ) : isAdmin ? (
+            <p className="text-[11px] text-muted-foreground px-1">
+              Admin access: you can manage members and transfer ownership.
+            </p>
           ) : (
             <Button
               size="sm"
@@ -142,7 +149,7 @@ export default function MembersPopover({ pid, ownerId }: Props) {
             </Button>
           )}
         </div>
-        {isOwner && members.length > 1 && (
+        {canManage && members.length > 1 && (
           <div className="p-2 border-t">
             <Select
               onValueChange={(uid) => {
