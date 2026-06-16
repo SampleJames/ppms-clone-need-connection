@@ -6,18 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Users, FolderOpen, Trash2, Crown, Pencil, Shield, Mail, Trash, User as UserIcon } from "lucide-react";
+import { Plus, Users, FolderOpen, Trash2, Crown, Pencil, Shield, Mail, Trash, User as UserIcon, Search, List, LayoutGrid, Square, Grid3x3, RotateCcw } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import {
   CollabProjectDoc, createCollabProject, deleteCollabProject, subscribeMyProjects,
   subscribeAllProjects, fetchOwnerInfo, isAdminEmail,
-  DeletedProjectDoc, subscribeDeletedProjects,
+  DeletedProjectDoc, subscribeDeletedProjects, restoreDeletedProject,
 } from "@/lib/collabStorage";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+
+type ViewMode = "list" | "grid" | "single" | "compact";
 
 export default function CollabPage() {
   const { user, loading } = useAuth();
