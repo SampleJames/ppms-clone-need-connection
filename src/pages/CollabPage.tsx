@@ -458,8 +458,10 @@ export default function CollabPage() {
             <Input placeholder="Description (optional)" value={desc} onChange={(e) => setDesc(e.target.value)} />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreate} disabled={!name.trim()}>Create</Button>
+            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>Cancel</Button>
+            <Button onClick={handleCreate} disabled={!name.trim() || creating}>
+              {creating ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Creating…</> : "Create"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
