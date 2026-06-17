@@ -9,9 +9,6 @@ import ProjectView from "@/pages/ProjectView";
 import PrintPage from "@/pages/PrintPage";
 import SettingsPage from "@/pages/SettingsPage";
 import AboutPage from "@/pages/AboutPage";
-import CollabPage from "@/pages/CollabPage";
-import CollabProjectPage from "@/pages/CollabProjectPage";
-import InviteAcceptPage from "@/pages/InviteAcceptPage";
 import NotFound from "./pages/NotFound.tsx";
 import ScrollToTop from "@/components/ScrollToTop";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -33,9 +30,6 @@ const App = () => (
               <Route path="/print" element={<PrintPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/about" element={<AboutPage />} />
-              <Route path="/collab" element={<CollabPage />} />
-              <Route path="/collab/project/:id" element={<CollabProjectPage />} />
-              <Route path="/collab/invite/:token" element={<InviteAcceptPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>

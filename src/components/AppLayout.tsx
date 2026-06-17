@@ -137,7 +137,7 @@
 
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Settings, Users } from "lucide-react";
+import { LayoutDashboard, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getAppSettings } from "@/lib/storage";
 import {
@@ -151,12 +151,10 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import UserMenu from "@/components/auth/UserMenu";
 import ThemeCustomizer from "@/components/ThemeCustomizer";
 
 const navItems = [
   { to: "/", label: "Projects", icon: LayoutDashboard },
-  { to: "/collab", label: "Shared Projects", icon: Users },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -182,7 +180,7 @@ function TopNavLayout({ children }: { children: React.ReactNode }) {
               to={item.to}
               className={cn(
                 "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
-                location.pathname === item.to || (item.to === "/collab" && location.pathname.startsWith("/collab"))
+                location.pathname === item.to
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
@@ -195,7 +193,6 @@ function TopNavLayout({ children }: { children: React.ReactNode }) {
         
         <div className="flex items-center gap-3">
           <ThemeCustomizer />
-          <UserMenu />
         </div>
       </header>
       <main className="flex-1">{children}</main>
@@ -226,7 +223,7 @@ function SidebarLayoutInner({ children }: { children: React.ReactNode }) {
                     <SidebarMenuItem key={item.to}>
                       <SidebarMenuButton
                         asChild
-                        isActive={location.pathname === item.to || (item.to === "/" && location.pathname.startsWith("/project/")) || (item.to === "/collab" && location.pathname.startsWith("/collab"))}
+                        isActive={location.pathname === item.to || (item.to === "/" && location.pathname.startsWith("/project/"))}
                       >
                         <Link to={item.to}>
                           <item.icon className="h-4 w-4" />
@@ -247,7 +244,6 @@ function SidebarLayoutInner({ children }: { children: React.ReactNode }) {
             
             <div className="ml-auto flex items-center gap-3">
               <ThemeCustomizer />
-              <UserMenu />
             </div>
           </header>
           <main className="flex-1">{children}</main>
