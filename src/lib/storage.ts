@@ -1,9 +1,39 @@
 import { Project, AppSettings, DEFAULT_APP_SETTINGS, DEFAULT_PROJECT_SETTINGS } from "@/types";
 import { createSampleProject } from "./sampleData";
+import { projectsApi, isApiReachable } from "./api";
 
 const PROJECTS_KEY = "costmgr_projects";
 const APP_SETTINGS_KEY = "costmgr_settings";
 const SAMPLE_CREATED_KEY = "costmgr_sample_created_v3";
+
+/**
+ * Bootstrap projects from the backend at app start.
+ * Fills the local cache used by the synchronous getters below.
+ * If the API is unreachable we keep whatever is already cached so the UI
+ * still renders, but writes will queue up and be re-tried on next save.
+ */
+let bootstrapped = false;
+export async function bootstrapProjects(): Promise<void> {
+  if (bootstrapped) return;
+  bootstrapped = true;
+  const reachable = await isApiReachable();
+  if (!reachable) {
+    console.warn("[storage] Backend API not reachable — using cached projects.");
+    return;
+  }
+  try {
+    const projects = await projectsApi.list();
+    localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
+    localStorage.setItem(SAMPLE_CREATED_KEY, "true");
+    window.dispatchEvent(new Event("projectsChanged"));
+  } catch (err) {
+    console.error("[storage] Failed to bootstrap projects from API:", err);
+  }
+}
+
+function fireAndForget(label: string, p: Promise<unknown>) {
+  p.catch((err) => console.error(`[storage] ${label} failed:`, err));
+}
 
 export function getProjects(): Project[] {
   
@@ -14,6 +44,7 @@ export function getProjects(): Project[] {
     const projects: Project[] = existing ? JSON.parse(existing) : [];
     projects.unshift(sample);
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
+    fireAndForget("create sample", projectsApi.create(sample));
   }
   const data = localStorage.getItem(PROJECTS_KEY);
   return data ? JSON.parse(data) : [];
@@ -33,14 +64,18 @@ export function saveProject(project: Project) {
   project.updatedAt = new Date().toISOString();
   if (idx >= 0) {
     projects[idx] = project;
+    saveProjects(projects);
+    fireAndForget("update project", projectsApi.update(project));
   } else {
     projects.push(project);
+    saveProjects(projects);
+    fireAndForget("create project", projectsApi.create(project));
   }
-  saveProjects(projects);
 }
 
 export function deleteProject(id: string) {
   saveProjects(getProjects().filter((p) => p.id !== id));
+  fireAndForget("delete project", projectsApi.remove(id));
 }
 
 export function createProject(name: string, description: string = ""): Project {
