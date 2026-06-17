@@ -41,7 +41,12 @@ export default function Dashboard() {
   }, [viewMode]);
 
   const reload = () => setProjects(getProjects());
-  useEffect(reload, []);
+  useEffect(() => {
+    reload();
+    const handler = () => reload();
+    window.addEventListener("projectsChanged", handler);
+    return () => window.removeEventListener("projectsChanged", handler);
+  }, []);
 
   const matchesSearch = (s: string) => {
     const q = search.trim().toLowerCase();
