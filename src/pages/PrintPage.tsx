@@ -44,11 +44,7 @@ import PrintSettingsEditor from "@/components/PrintSettingsEditor";
 import SCurve, { getSnapshots, type SCurveSnapshot } from "@/components/SCurve";
 import { PrintSettings, DEFAULT_PRINT_SETTINGS, PrintDocType, PrintProfiles } from "@/types";
 
-// Firebase & Collab Imports
-import { useAuth } from "@/contexts/AuthContext";
-import { subscribeMyProjects, subscribeAllProjects, subscribeProject, CollabProjectDoc, docToProject, isAdminEmail } from "@/lib/collabStorage";
-import { collection, doc, setDoc, deleteDoc, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+// Local-only project printing (no cloud collab).
 
 function hexToRgb(hex: string): [number, number, number] {
   const r = parseInt(hex.slice(1, 3), 16);
@@ -167,40 +163,12 @@ export default function PrintPage() {
   const [searchParams] = useSearchParams();
   const preselectedProjectId = searchParams.get("project") || "";
 
-  // 1. Setup Auth and Firebase/Local Projects States
-  const { user } = useAuth();
   const [localProjects] = useState<Project[]>(() => getProjects());
-  const [collabDocs, setCollabDocs] = useState<CollabProjectDoc[]>([]);
-  const [activeCollabProject, setActiveCollabProject] = useState<Project | null>(null);
-  
   const [selectedProjectId, setSelectedProjectId] = useState(preselectedProjectId);
   const [activeTab, setActiveTab] = useState<"abc" | "dupa" | "boq" | "scurve" | "header">("abc");
 
-  // Fetch Collab Project List (admins see all projects)
-  const isAdmin = isAdminEmail(user?.email);
-  useEffect(() => {
-    if (!user) return;
-    if (isAdmin) return subscribeAllProjects(setCollabDocs);
-    return subscribeMyProjects(user.uid, setCollabDocs);
-  }, [user, isAdmin]);
-
-  // Determine if it's local or cloud, and fetch cloud if needed
-  const localProjectMatch = localProjects.find((p) => p.id === selectedProjectId);
-  const isCollab = selectedProjectId && !localProjectMatch;
-
-  useEffect(() => {
-    if (isCollab && selectedProjectId) {
-      return subscribeProject(selectedProjectId, (doc) => {
-        if (doc) setActiveCollabProject(docToProject(doc));
-        else setActiveCollabProject(null);
-      });
-    } else {
-      setActiveCollabProject(null);
-    }
-  }, [selectedProjectId, isCollab]);
-
-  // The definitive selected project for generating PDFs
-  const selectedProject = isCollab ? activeCollabProject : localProjectMatch;
+  // The selected project comes from the local store.
+  const selectedProject = localProjects.find((p) => p.id === selectedProjectId);
 
   const [abcVisibleColumns, setAbcVisibleColumns] = useState<Set<string>>(
     () => new Set(ABC_COLUMNS.filter((c) => c.default).map((c) => c.key))
