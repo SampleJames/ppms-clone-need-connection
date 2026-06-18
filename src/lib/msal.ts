@@ -28,8 +28,21 @@ export const loginRequest = {
 
 export const msalInstance = new PublicClientApplication(msalConfig);
 
-// Initialize MSAL eagerly so the provider is ready before first use.
-export const msalReady = msalInstance.initialize();
+// Initialize MSAL eagerly so the provider is ready before first use,
+// then process any redirect response (returns from loginRedirect).
+export const msalReady = msalInstance.initialize().then(async () => {
+  try {
+    const result = await msalInstance.handleRedirectPromise();
+    if (result?.account) {
+      msalInstance.setActiveAccount(result.account);
+    } else {
+      const accounts = msalInstance.getAllAccounts();
+      if (accounts[0]) msalInstance.setActiveAccount(accounts[0]);
+    }
+  } catch (err) {
+    console.error("[msal] handleRedirectPromise failed", err);
+  }
+});
 
 export function isMsalConfigured(): boolean {
   return Boolean(clientId);

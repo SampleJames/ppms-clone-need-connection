@@ -29,7 +29,7 @@ export default function UserMenu() {
     .toUpperCase();
 
   const handleSignOut = async () => {
-    await instance.logoutPopup({ postLogoutRedirectUri: window.location.origin });
+    await instance.logoutRedirect({ postLogoutRedirectUri: window.location.origin });
   };
 
   return (

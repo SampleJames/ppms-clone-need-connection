@@ -22,7 +22,7 @@ export default function SignInScreen() {
     }
     setBusy(true);
     try {
-      await instance.loginPopup(loginRequest);
+      await instance.loginRedirect(loginRequest);
     } catch (err) {
       toast({
         title: "Sign in failed",
