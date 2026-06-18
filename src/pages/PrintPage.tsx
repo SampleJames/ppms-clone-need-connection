@@ -1690,31 +1690,6 @@ export default function PrintPage() {
                         ))}
                       </SelectGroup>
 
-                      {cloudTemplates[editingDoc].length > 0 && (
-                        <SelectGroup>
-                          <SelectLabel className="text-muted-foreground text-[10px] mt-2 border-t pt-1">☁️ Cloud (Shared)</SelectLabel>
-                          {cloudTemplates[editingDoc].map((t) => (
-                            <div key={t.id} className="flex items-center pr-1">
-                              <SelectItem value={t.id} className="flex-1">
-                                {t.name}
-                              </SelectItem>
-                              <button
-                                type="button"
-                                className="ml-1 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                                title="Delete shared template"
-                                onPointerDown={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  if (window.confirm(`Delete shared template "${t.name}"? This will delete it for EVERYONE.`)) handleDeleteTemplate(t.id, true);
-                                }}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          ))}
-                        </SelectGroup>
-                      )}
-
                       {customTemplates[editingDoc].length > 0 && (
                         <SelectGroup>
                           <SelectLabel className="text-muted-foreground text-[10px] mt-2 border-t pt-1">💻 Local (Just You)</SelectLabel>
@@ -1836,23 +1811,6 @@ export default function PrintPage() {
                 onChange={(e) => setSaveTplName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && saveTplName.trim()) confirmSaveTemplate(); }}
               />
-            </div>
-            <div className="space-y-2">
-              <Label>Save Location</Label>
-              <Select value={saveTplLocation} onValueChange={(v: any) => setSaveTplLocation(v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cloud">☁️ Cloud (Share with everyone)</SelectItem>
-                  <SelectItem value="local">💻 Local (Only on this device)</SelectItem>
-                </SelectContent>
-              </Select>
-              {saveTplLocation === "cloud" && (
-                <p className="text-[11px] text-muted-foreground">
-                  This will instantly sync to all users via Firebase. Great for company logos!
-                </p>
-              )}
             </div>
           </div>
           <DialogFooter>
