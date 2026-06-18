@@ -33,6 +33,16 @@ export const msalInstance = new PublicClientApplication(msalConfig);
 export const msalReady = msalInstance.initialize().then(async () => {
   try {
     const result = await msalInstance.handleRedirectPromise();
+    // eslint-disable-next-line no-console
+    console.log("[msal] init complete", {
+      origin: window.location.origin,
+      redirectUri: msalConfig.auth.redirectUri,
+      clientId,
+      tenantId,
+      hasResult: Boolean(result),
+      resultAccount: result?.account?.username,
+      accountsInCache: msalInstance.getAllAccounts().map((a) => a.username),
+    });
     if (result?.account) {
       msalInstance.setActiveAccount(result.account);
     } else {
