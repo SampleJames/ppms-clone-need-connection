@@ -7,7 +7,7 @@ import { loginRequest, isMsalConfigured } from "@/lib/msal";
 import { Loader2 } from "lucide-react";
 
 export default function SignInScreen() {
-  const { instance } = useMsal();
+  const { instance, accounts, inProgress } = useMsal();
   const [busy, setBusy] = useState(false);
   const configured = isMsalConfigured();
 
@@ -81,6 +81,13 @@ export default function SignInScreen() {
               Microsoft sign-in is not configured yet. See <code>server/README.md</code> for setup.
             </p>
           )}
+          <div className="text-[11px] text-muted-foreground border border-dashed rounded-md p-2 space-y-1">
+            <div><b>Debug</b> (open the browser console for more):</div>
+            <div>origin: <code>{window.location.origin}</code></div>
+            <div>inProgress: <code>{inProgress}</code></div>
+            <div>cached accounts: <code>{accounts.length}</code>{accounts[0] ? ` — ${accounts[0].username}` : ""}</div>
+            <div>in iframe: <code>{String(window.top !== window.self)}</code></div>
+          </div>
         </CardContent>
       </Card>
     </div>
