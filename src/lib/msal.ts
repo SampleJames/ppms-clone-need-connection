@@ -9,12 +9,9 @@ export const msalConfig: Configuration = {
     authority: `https://login.microsoftonline.com/${tenantId}`,
     redirectUri: window.location.origin,
     postLogoutRedirectUri: window.location.origin,
-    navigateToLoginRequestUrl: false,
   },
   cache: {
     cacheLocation: "localStorage",
-    temporaryCacheLocation: "localStorage",
-    storeAuthStateInCookie: true,
   },
   system: {
     loggerOptions: {
@@ -35,7 +32,9 @@ export const msalInstance = new PublicClientApplication(msalConfig);
 // then process any redirect response (returns from loginRedirect).
 export const msalReady = msalInstance.initialize().then(async () => {
   try {
-    const result = await msalInstance.handleRedirectPromise();
+    const result = await msalInstance.handleRedirectPromise({
+      navigateToLoginRequestUrl: false,
+    });
     // eslint-disable-next-line no-console
     console.log("[msal] init complete", {
       origin: window.location.origin,
@@ -59,4 +58,10 @@ export const msalReady = msalInstance.initialize().then(async () => {
 
 export function isMsalConfigured(): boolean {
   return Boolean(clientId);
+}
+
+export function setActiveMsalAccount() {
+  const account = msalInstance.getActiveAccount() ?? msalInstance.getAllAccounts()[0] ?? null;
+  if (account) msalInstance.setActiveAccount(account);
+  return account;
 }
