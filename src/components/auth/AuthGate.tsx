@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import { useIsAuthenticated, useMsal } from "@azure/msal-react";
 import { InteractionStatus } from "@azure/msal-browser";
 import SignInScreen from "@/components/auth/SignInScreen";
@@ -15,16 +15,21 @@ export function useAppUser() {
 
 export default function AuthGate({ children }: { children: ReactNode }) {
   const isAuthenticated = useIsAuthenticated();
-  const { accounts, inProgress } = useMsal();
+  const { accounts, inProgress, instance } = useMsal();
   const [user, setUser] = useState<AppUser | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const account = useMemo(
+    () => instance.getActiveAccount() ?? accounts[0] ?? instance.getAllAccounts()[0],
+    [accounts, instance],
+  );
+  const hasSignedInAccount = isAuthenticated || Boolean(account);
 
   useEffect(() => {
-    const account = accounts[0];
-    if (!isAuthenticated || !account) {
+    if (!hasSignedInAccount || !account) {
       setUser(null);
       return;
     }
+    instance.setActiveAccount(account);
     const email =
       (account.username as string | undefined) ||
       ((account.idTokenClaims as Record<string, unknown> | undefined)?.email as string | undefined) ||
@@ -53,9 +58,9 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         });
       })
       .finally(() => setSyncing(false));
-  }, [isAuthenticated, accounts]);
+  }, [account, hasSignedInAccount, instance]);
 
-  if (inProgress !== InteractionStatus.None && !isAuthenticated) {
+  if (inProgress !== InteractionStatus.None && !hasSignedInAccount) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -63,7 +68,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!hasSignedInAccount) {
     return <SignInScreen />;
   }
 
