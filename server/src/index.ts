@@ -3,6 +3,7 @@ import cors from "cors";
 import "dotenv/config";
 import projectsRouter from "./routes/projects";
 import settingsRouter from "./routes/settings";
+import usersRouter from "./routes/users";
 import { getPool } from "./db";
 
 const app = express();
@@ -24,6 +25,7 @@ app.get("/api/health", async (_req, res) => {
 
 app.use("/api/projects", projectsRouter);
 app.use("/api/settings", settingsRouter);
+app.use("/api/users", usersRouter);
 
 // Centralised error handler
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
