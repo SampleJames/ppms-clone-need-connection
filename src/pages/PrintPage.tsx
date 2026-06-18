@@ -44,11 +44,7 @@ import PrintSettingsEditor from "@/components/PrintSettingsEditor";
 import SCurve, { getSnapshots, type SCurveSnapshot } from "@/components/SCurve";
 import { PrintSettings, DEFAULT_PRINT_SETTINGS, PrintDocType, PrintProfiles } from "@/types";
 
-// Firebase & Collab Imports
-import { useAuth } from "@/contexts/AuthContext";
-import { subscribeMyProjects, subscribeAllProjects, subscribeProject, CollabProjectDoc, docToProject, isAdminEmail } from "@/lib/collabStorage";
-import { collection, doc, setDoc, deleteDoc, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+// Local-only project printing (no cloud collab).
 
 function hexToRgb(hex: string): [number, number, number] {
   const r = parseInt(hex.slice(1, 3), 16);
@@ -167,40 +163,12 @@ export default function PrintPage() {
   const [searchParams] = useSearchParams();
   const preselectedProjectId = searchParams.get("project") || "";
 
-  // 1. Setup Auth and Firebase/Local Projects States
-  const { user } = useAuth();
   const [localProjects] = useState<Project[]>(() => getProjects());
-  const [collabDocs, setCollabDocs] = useState<CollabProjectDoc[]>([]);
-  const [activeCollabProject, setActiveCollabProject] = useState<Project | null>(null);
-  
   const [selectedProjectId, setSelectedProjectId] = useState(preselectedProjectId);
   const [activeTab, setActiveTab] = useState<"abc" | "dupa" | "boq" | "scurve" | "header">("abc");
 
-  // Fetch Collab Project List (admins see all projects)
-  const isAdmin = isAdminEmail(user?.email);
-  useEffect(() => {
-    if (!user) return;
-    if (isAdmin) return subscribeAllProjects(setCollabDocs);
-    return subscribeMyProjects(user.uid, setCollabDocs);
-  }, [user, isAdmin]);
-
-  // Determine if it's local or cloud, and fetch cloud if needed
-  const localProjectMatch = localProjects.find((p) => p.id === selectedProjectId);
-  const isCollab = selectedProjectId && !localProjectMatch;
-
-  useEffect(() => {
-    if (isCollab && selectedProjectId) {
-      return subscribeProject(selectedProjectId, (doc) => {
-        if (doc) setActiveCollabProject(docToProject(doc));
-        else setActiveCollabProject(null);
-      });
-    } else {
-      setActiveCollabProject(null);
-    }
-  }, [selectedProjectId, isCollab]);
-
-  // The definitive selected project for generating PDFs
-  const selectedProject = isCollab ? activeCollabProject : localProjectMatch;
+  // The selected project comes from the local store.
+  const selectedProject = localProjects.find((p) => p.id === selectedProjectId);
 
   const [abcVisibleColumns, setAbcVisibleColumns] = useState<Set<string>>(
     () => new Set(ABC_COLUMNS.filter((c) => c.default).map((c) => c.key))
@@ -277,7 +245,7 @@ export default function PrintPage() {
 
   const setDocSettings = (doc: PrintDocType, ps: PrintSettings) => {
     setPrintProfiles((prev) => ({ ...prev, [doc]: ps }));
-    if (selectedProject && !isCollab) {
+    if (selectedProject) {
       const overrides = { ...(selectedProject.printProfileOverrides || {}), [doc]: ps };
       saveProject({ ...selectedProject, printProfileOverrides: overrides });
     } else {
@@ -305,30 +273,7 @@ export default function PrintPage() {
   };
 
   const [customTemplates, setCustomTemplates] = useState<AllTemplates>(() => loadAllTemplates());
-  
-  // Real-time Cloud Templates Sync via Firebase
-  const [cloudTemplates, setCloudTemplates] = useState<AllTemplates>({ abc: [], dupa: [], boq: [], scurve: [] });
-  const [saveTplLocation, setSaveTplLocation] = useState<"cloud" | "local">("cloud");
-
-  useEffect(() => {
-    if (!user) return;
-    const unsub = onSnapshot(collection(db, "printTemplates"), (snap) => {
-      const parsed: AllTemplates = { abc: [], dupa: [], boq: [], scurve: [] };
-      snap.forEach((docSnap) => {
-        const data = docSnap.data();
-        const tType = data.type as PrintDocType;
-        if (parsed[tType]) {
-          parsed[tType].push({
-            id: docSnap.id,
-            name: data.name,
-            settings: data.settings
-          });
-        }
-      });
-      setCloudTemplates(parsed);
-    });
-    return unsub;
-  }, [user]);
+  const [saveTplLocation] = useState<"local">("local");
 
   const [appliedTemplateId, setAppliedTemplateId] = useState<Record<PrintDocType, string>>({
     abc: "", dupa: "__builtin_simple", boq: "", scurve: "",
@@ -365,11 +310,10 @@ export default function PrintPage() {
 
   const templatesForCurrentDoc = useMemo(
     () => [
-      ...builtInTemplates, 
-      ...cloudTemplates[editingDoc], 
+      ...builtInTemplates,
       ...customTemplates[editingDoc]
     ],
-    [builtInTemplates, cloudTemplates, customTemplates, editingDoc]
+    [builtInTemplates, customTemplates, editingDoc]
   );
 
   const applyPrintTemplate = (id: string) => {
@@ -382,7 +326,6 @@ export default function PrintPage() {
 
   const openSaveTemplateDialog = () => {
     setSaveTplName("");
-    setSaveTplLocation("cloud"); // Default to Cloud sharing!
     setSaveTplOpen(true);
   };
 
@@ -390,56 +333,35 @@ export default function PrintPage() {
     const name = saveTplName.trim();
     if (!name) return;
     const tplId = `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    
+
     try {
-      if (saveTplLocation === "cloud") {
-        await setDoc(doc(db, "printTemplates", tplId), {
-          name,
-          type: editingDoc,
-          settings: printProfiles[editingDoc],
-          createdBy: user?.uid || "unknown",
-          createdAt: new Date().toISOString()
-        });
-        setAppliedTemplateId((prev) => ({ ...prev, [editingDoc]: tplId }));
-        setSaveTplOpen(false);
-        toast({ title: `Shared template "${name}" saved to Cloud` });
-      } else {
-        const tpl: PrintTemplate = { id: tplId, name, settings: { ...printProfiles[editingDoc] } };
-        const next: AllTemplates = {
-          ...customTemplates,
-          [editingDoc]: [...customTemplates[editingDoc], tpl],
-        };
-        persistTemplates(next);
-        setAppliedTemplateId((prev) => ({ ...prev, [editingDoc]: tpl.id }));
-        setSaveTplOpen(false);
-        toast({ title: `Local template "${name}" saved` });
-      }
+      const tpl: PrintTemplate = { id: tplId, name, settings: { ...printProfiles[editingDoc] } };
+      const next: AllTemplates = {
+        ...customTemplates,
+        [editingDoc]: [...customTemplates[editingDoc], tpl],
+      };
+      persistTemplates(next);
+      setAppliedTemplateId((prev) => ({ ...prev, [editingDoc]: tpl.id }));
+      setSaveTplOpen(false);
+      toast({ title: `Template "${name}" saved` });
     } catch (err) {
       toast({ title: "Failed to save template", description: (err as Error).message, variant: "destructive" });
     }
   };
 
-  const handleDeleteTemplate = async (id: string, isCloud: boolean) => {
+  const handleDeleteTemplate = async (id: string, _isCloud: boolean) => {
     if (id.startsWith("__builtin_")) return;
-    
+
     try {
-      if (isCloud) {
-        await deleteDoc(doc(db, "printTemplates", id));
-        if (appliedTemplateId[editingDoc] === id) {
-          setAppliedTemplateId((prev) => ({ ...prev, [editingDoc]: "" }));
-        }
-        toast({ title: "Shared template deleted" });
-      } else {
-        const next: AllTemplates = {
-          ...customTemplates,
-          [editingDoc]: customTemplates[editingDoc].filter((t) => t.id !== id),
-        };
-        persistTemplates(next);
-        if (appliedTemplateId[editingDoc] === id) {
-          setAppliedTemplateId((prev) => ({ ...prev, [editingDoc]: "" }));
-        }
-        toast({ title: "Local template deleted" });
+      const next: AllTemplates = {
+        ...customTemplates,
+        [editingDoc]: customTemplates[editingDoc].filter((t) => t.id !== id),
+      };
+      persistTemplates(next);
+      if (appliedTemplateId[editingDoc] === id) {
+        setAppliedTemplateId((prev) => ({ ...prev, [editingDoc]: "" }));
       }
+      toast({ title: "Template deleted" });
     } catch (err) {
       toast({ title: "Failed to delete template", description: (err as Error).message, variant: "destructive" });
     }
@@ -447,7 +369,7 @@ export default function PrintPage() {
 
   const handleSavePrintSettings = () => {
     const ps = printProfiles[editingDoc];
-    if (printScope === "global" || isCollab) {
+    if (printScope === "global") {
       saveGlobalPrintProfile(editingDoc, ps);
       toast({ title: `Global ${DOC_PAGE[editingDoc].label} print settings saved` });
     } else if (selectedProject) {
@@ -459,7 +381,7 @@ export default function PrintPage() {
   };
 
   const handleClearProjectOverride = () => {
-    if (!selectedProject || isCollab) return;
+    if (!selectedProject) return;
     const overrides = { ...(selectedProject.printProfileOverrides || {}) };
     delete overrides[editingDoc];
     const updated: Project = { ...selectedProject, printProfileOverrides: overrides };
@@ -1064,17 +986,6 @@ export default function PrintPage() {
                   </SelectGroup>
                 )}
                 
-                {collabDocs.length > 0 && (
-                  <SelectGroup>
-                    <SelectLabel className="text-muted-foreground mt-2">Cloud / Shared Projects</SelectLabel>
-                    {collabDocs.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        ☁️ {p.name}
-                        {p.ownerEmail ? ` (Owner: ${p.ownerEmail})` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                )}
               </SelectContent>
             </Select>
           </div>
@@ -1779,31 +1690,6 @@ export default function PrintPage() {
                         ))}
                       </SelectGroup>
 
-                      {cloudTemplates[editingDoc].length > 0 && (
-                        <SelectGroup>
-                          <SelectLabel className="text-muted-foreground text-[10px] mt-2 border-t pt-1">☁️ Cloud (Shared)</SelectLabel>
-                          {cloudTemplates[editingDoc].map((t) => (
-                            <div key={t.id} className="flex items-center pr-1">
-                              <SelectItem value={t.id} className="flex-1">
-                                {t.name}
-                              </SelectItem>
-                              <button
-                                type="button"
-                                className="ml-1 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                                title="Delete shared template"
-                                onPointerDown={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  if (window.confirm(`Delete shared template "${t.name}"? This will delete it for EVERYONE.`)) handleDeleteTemplate(t.id, true);
-                                }}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          ))}
-                        </SelectGroup>
-                      )}
-
                       {customTemplates[editingDoc].length > 0 && (
                         <SelectGroup>
                           <SelectLabel className="text-muted-foreground text-[10px] mt-2 border-t pt-1">💻 Local (Just You)</SelectLabel>
@@ -1925,23 +1811,6 @@ export default function PrintPage() {
                 onChange={(e) => setSaveTplName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && saveTplName.trim()) confirmSaveTemplate(); }}
               />
-            </div>
-            <div className="space-y-2">
-              <Label>Save Location</Label>
-              <Select value={saveTplLocation} onValueChange={(v: any) => setSaveTplLocation(v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cloud">☁️ Cloud (Share with everyone)</SelectItem>
-                  <SelectItem value="local">💻 Local (Only on this device)</SelectItem>
-                </SelectContent>
-              </Select>
-              {saveTplLocation === "cloud" && (
-                <p className="text-[11px] text-muted-foreground">
-                  This will instantly sync to all users via Firebase. Great for company logos!
-                </p>
-              )}
             </div>
           </div>
           <DialogFooter>

@@ -5,8 +5,8 @@
     "": {
       "name": "tanstack_start_ts",
       "dependencies": {
-        "@azure/msal-browser": "^5.11.0",
-        "@azure/msal-react": "^5.4.2",
+        "@azure/msal-browser": "^5.14.0",
+        "@azure/msal-react": "^5.4.5",
         "@hookform/resolvers": "^3.10.0",
         "@radix-ui/react-accordion": "^1.2.11",
         "@radix-ui/react-alert-dialog": "^1.1.14",
@@ -95,11 +95,11 @@
 
     "@alloc/quick-lru": ["@alloc/quick-lru@5.2.0", "", {}, "sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw=="],
 
-    "@azure/msal-browser": ["@azure/msal-browser@5.13.0", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@azure/msal-browser/-/msal-browser-5.13.0.tgz", { "dependencies": { "@azure/msal-common": "16.8.0" } }, "sha512-Ea23x0U8XNFY+qJ9T44zO2BbY+AHdb+WdjmYnx36OhJ/KO+PGU5pmsNHf1DCElYX+6wyVRJz1HFeCPC/cHbRug=="],
+    "@azure/msal-browser": ["@azure/msal-browser@5.14.0", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@azure/msal-browser/-/msal-browser-5.14.0.tgz", { "dependencies": { "@azure/msal-common": "16.9.0" } }, "sha512-Dfl7hPZe9/JJwRhFFXHq2z1oHYBuGubmff3kWXOsd1AGgyXlqjNYAWuN/1JL/ZrcZBs8TKMjGSil6Rcc7E8VPQ=="],
 
-    "@azure/msal-common": ["@azure/msal-common@16.8.0", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@azure/msal-common/-/msal-common-16.8.0.tgz", {}, "sha512-5S4RHOcInL2Nu2U217tDZbWGI6StMfcWCrA7TWvWdJmXQ+cYrrIqr84AsN62fGh2MDBysiBJPt6CfWceJfloEA=="],
+    "@azure/msal-common": ["@azure/msal-common@16.9.0", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@azure/msal-common/-/msal-common-16.9.0.tgz", {}, "sha512-1MWGjqgUCRAYgLmVFZKp7fs3Rg1TFvIMgywY8ze2olNVvLlJoRThuoziWSDJuwwyJI5L4rnLb9Tyt5D9GvSLPw=="],
 
-    "@azure/msal-react": ["@azure/msal-react@5.4.4", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@azure/msal-react/-/msal-react-5.4.4.tgz", { "peerDependencies": { "@azure/msal-browser": "^5.13.0", "react": "^16.8.0 || ^17 || ^18 || ^19.2.1" } }, "sha512-FQptUhRkh32klnsu9P2aJZ5RZZIkJhwm9exIJBBx/HAm44hjW8YcYj88YmTjwRis6Z9h2qyie7RhCxMX3QXG9g=="],
+    "@azure/msal-react": ["@azure/msal-react@5.4.5", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@azure/msal-react/-/msal-react-5.4.5.tgz", { "peerDependencies": { "@azure/msal-browser": "^5.14.0", "react": "^16.8.0 || ^17 || ^18 || ^19.2.1" } }, "sha512-/nQ3/hpzsRNwGE87GSWsw9+Iw2/ZtmWdteBa24C8LI+h7tuh57J2X+q15kupCRiWt+tS2tqIIsBVv7qbfTMq4w=="],
 
     "@babel/code-frame": ["@babel/code-frame@7.29.0", "", { "dependencies": { "@babel/helper-validator-identifier": "^7.28.5", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw=="],
 

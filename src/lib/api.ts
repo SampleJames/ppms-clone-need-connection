@@ -52,6 +52,32 @@ export const settingsApi = {
     request<T>("/settings", { method: "PUT", body: JSON.stringify(value) }),
 };
 
+export type AppUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: "admin" | "user";
+  azureOid?: string;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export const usersApi = {
+  upsert: (input: { email: string; name: string; azureOid?: string }) =>
+    request<AppUser>("/users/upsert", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  me: (email: string) => request<AppUser>(`/users/me?email=${encodeURIComponent(email)}`),
+  list: () => request<AppUser[]>("/users"),
+  updateRole: (id: string, role: "admin" | "user") =>
+    request<AppUser>(`/users/${id}/role`, {
+      method: "PUT",
+      body: JSON.stringify({ role }),
+    }),
+};
+
 export async function isApiReachable(): Promise<boolean> {
   try {
     const res = await fetch(`${BASE_URL}/health`);
