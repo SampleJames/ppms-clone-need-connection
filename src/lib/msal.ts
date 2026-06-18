@@ -9,9 +9,12 @@ export const msalConfig: Configuration = {
     authority: `https://login.microsoftonline.com/${tenantId}`,
     redirectUri: window.location.origin,
     postLogoutRedirectUri: window.location.origin,
+    navigateToLoginRequestUrl: false,
   },
   cache: {
     cacheLocation: "localStorage",
+    temporaryCacheLocation: "localStorage",
+    storeAuthStateInCookie: true,
   },
   system: {
     loggerOptions: {
@@ -23,7 +26,7 @@ export const msalConfig: Configuration = {
 };
 
 export const loginRequest = {
-  scopes: ["openid", "profile", "email", "User.Read"],
+  scopes: ["openid", "profile", "email"],
 };
 
 export const msalInstance = new PublicClientApplication(msalConfig);
