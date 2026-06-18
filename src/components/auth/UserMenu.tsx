@@ -16,7 +16,7 @@ import { useAppUser } from "@/components/auth/AuthGate";
 export default function UserMenu() {
   const { instance, accounts } = useMsal();
   const { user } = useAppUser();
-  const account = accounts[0];
+  const account = instance.getActiveAccount() ?? accounts[0] ?? instance.getAllAccounts()[0];
   if (!account) return null;
 
   const displayName = user?.name || account.name || account.username || "User";

@@ -1,6 +1,12 @@
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { useIsAuthenticated, useMsal } from "@azure/msal-react";
-import { InteractionStatus } from "@azure/msal-browser";
+import {
+  EventMessage,
+  EventType,
+  InteractionStatus,
+  type AccountInfo,
+  type AuthenticationResult,
+} from "@azure/msal-browser";
 import SignInScreen from "@/components/auth/SignInScreen";
 import { usersApi, type AppUser } from "@/lib/api";
 import { Loader2 } from "lucide-react";
@@ -16,11 +22,46 @@ export function useAppUser() {
 export default function AuthGate({ children }: { children: ReactNode }) {
   const isAuthenticated = useIsAuthenticated();
   const { accounts, inProgress, instance } = useMsal();
+  const [cachedAccounts, setCachedAccounts] = useState<AccountInfo[]>(() =>
+    instance.getAllAccounts(),
+  );
   const [user, setUser] = useState<AppUser | null>(null);
   const [syncing, setSyncing] = useState(false);
+
+  const refreshAccounts = useCallback(() => {
+    const allAccounts = instance.getAllAccounts();
+    const activeAccount = instance.getActiveAccount() ?? allAccounts[0] ?? null;
+    if (activeAccount) instance.setActiveAccount(activeAccount);
+    setCachedAccounts(allAccounts);
+  }, [instance]);
+
+  useEffect(() => {
+    refreshAccounts();
+    const callbackId = instance.addEventCallback((message: EventMessage) => {
+      const result = message.payload as AuthenticationResult | null;
+      if (
+        (message.eventType === EventType.LOGIN_SUCCESS ||
+          message.eventType === EventType.ACQUIRE_TOKEN_SUCCESS) &&
+        result?.account
+      ) {
+        instance.setActiveAccount(result.account);
+      }
+      refreshAccounts();
+    });
+    window.addEventListener("focus", refreshAccounts);
+    window.addEventListener("storage", refreshAccounts);
+
+    return () => {
+      if (callbackId) instance.removeEventCallback(callbackId);
+      window.removeEventListener("focus", refreshAccounts);
+      window.removeEventListener("storage", refreshAccounts);
+    };
+  }, [instance, refreshAccounts]);
+
+  const authAccounts = accounts.length > 0 ? accounts : cachedAccounts;
   const account = useMemo(
-    () => instance.getActiveAccount() ?? accounts[0] ?? instance.getAllAccounts()[0],
-    [accounts, instance],
+    () => instance.getActiveAccount() ?? authAccounts[0] ?? instance.getAllAccounts()[0],
+    [authAccounts, instance],
   );
   const hasSignedInAccount = isAuthenticated || Boolean(account);
 

@@ -22,13 +22,24 @@ export default function SignInScreen() {
     }
     setBusy(true);
     try {
-      await instance.loginRedirect(loginRequest);
-    } catch (err) {
-      toast({
-        title: "Sign in failed",
-        description: (err as Error).message,
-        variant: "destructive",
+      const result = await instance.loginPopup({
+        ...loginRequest,
+        popupWindowAttributes: { popupSize: { height: 720, width: 520 } },
       });
+      if (result.account) instance.setActiveAccount(result.account);
+    } catch (popupErr) {
+      try {
+        await instance.loginRedirect({
+          ...loginRequest,
+          redirectStartPage: window.location.origin,
+        });
+      } catch (err) {
+        toast({
+          title: "Sign in failed",
+          description: (err as Error).message || (popupErr as Error).message,
+          variant: "destructive",
+        });
+      }
     } finally {
       setBusy(false);
     }
