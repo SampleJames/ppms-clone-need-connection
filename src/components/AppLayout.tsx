@@ -152,6 +152,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import ThemeCustomizer from "@/components/ThemeCustomizer";
+import UserMenu from "@/components/auth/UserMenu";
 
 const navItems = [
   { to: "/", label: "Projects", icon: LayoutDashboard },
@@ -193,6 +194,7 @@ function TopNavLayout({ children }: { children: React.ReactNode }) {
         
         <div className="flex items-center gap-3">
           <ThemeCustomizer />
+          <UserMenu />
         </div>
       </header>
       <main className="flex-1">{children}</main>
@@ -244,6 +246,7 @@ function SidebarLayoutInner({ children }: { children: React.ReactNode }) {
             
             <div className="ml-auto flex items-center gap-3">
               <ThemeCustomizer />
+              <UserMenu />
             </div>
           </header>
           <main className="flex-1">{children}</main>
